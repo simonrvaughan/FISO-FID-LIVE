@@ -1233,14 +1233,19 @@ for (const id of Object.keys(STATIC)) {
       // visible outline must highlight when EITHER member is selected.
       const ownerId = poly.__hazdamId || id;
       const ownerObj = layersById[ownerId];
+      // DEV461: a stacked area's upper band may be active without its lower
+      // band. Style the shared footprint from the most active member.
+      const rank = {inactive:0, pending:1, active:2};
+      const styleId = (ownerObj.geometryMembers || [ownerId]).reduce((best, member) =>
+        rank[effectiveState(member)] > rank[effectiveState(best)] ? member : best, ownerId);
       const selectedOnThisGeometry = selectedId === id || selectedId === ownerId ||
         (selectedId && layersById[selectedId] && visiblePolyFor(selectedId) === poly);
-      const cls = `hazdam-aip-area ${areaStateClass(ownerId)} ${selectedOnThisGeometry ? "hazdam-selected-area" : ""}`;
+      const cls = `hazdam-aip-area ${areaStateClass(styleId)} ${selectedOnThisGeometry ? "hazdam-selected-area" : ""}`;
       const signature = cls + "|" + selectedOnThisGeometry;
       if(poly.__hazdamStyleSignature !== signature){
         poly.setStyle({
           className: cls,
-          color: strokeForState(ownerId),
+          color: strokeForState(styleId),
           weight: selectedOnThisGeometry ? 2.15 : 1.15,
           opacity: selectedOnThisGeometry ? 1 : 0.86,
           fill:true,
@@ -1373,6 +1378,7 @@ for (const id of Object.keys(STATIC)) {
       if(existingGeometryId && layersById[existingGeometryId] && layersById[existingGeometryId].poly){
         // Same published horizontal architecture: do not draw a second outline.
         displayedPoly = null;
+        layersById[existingGeometryId].geometryMembers.push(id);
       } else {
         poly.__hazdamId = id;
         poly.on("click", () => { selectArea(id, true); openAreaPopup(id); });
@@ -1398,7 +1404,7 @@ for (const id of Object.keys(STATIC)) {
       label.__hazdamId = id;
       label.on("click", () => { selectArea(id, true); openAreaPopup(id); });
       label.addTo(layerGroup);
-      layersById[id] = { poly: displayedPoly, label, stalk, sharedGeometryWith: existingGeometryId || null };
+      layersById[id] = { poly: displayedPoly, label, stalk, sharedGeometryWith: existingGeometryId || null, geometryMembers:[id] };
     });
 
     if(visible) layerGroup.addTo(map);
@@ -1412,6 +1418,7 @@ for (const id of Object.keys(STATIC)) {
     });
     if(selectedId && visiblePolyFor(selectedId)) visiblePolyFor(selectedId).bringToFront();
 
+    refreshAllAreaLayers();
     updateLabelZoomClass();
     if(!editing) renderPanel();
     updateConflictVectors();

@@ -190,7 +190,7 @@
     for(var attempt=0;attempt<2;attempt++){
       var abort=new AbortController(),timer=setTimeout(function(){abort.abort();},12000);
       try{
-        var u=new URL(assetUrl('ffapp-auth.js?v=dev461-1'));u.searchParams.set('boot',Date.now()+'-'+attempt);
+        var u=new URL(assetUrl('ffapp-auth.js?v=dev461-2'));u.searchParams.set('boot',Date.now()+'-'+attempt);
         var response=await fetch(u.href,{cache:'no-store',credentials:'same-origin',redirect:'error',signal:abort.signal});
         if(!response.ok||!/(?:java|ecma)script/i.test(response.headers.get('content-type')||''))throw Error('Login file unavailable');
         var code=await response.text();if(abort.signal.aborted||code.length>2*1024*1024)throw Error('Login file incomplete');

@@ -1,6 +1,6 @@
 # DEV461 — missing EGD290A/B/C
 
-Status: implemented, locally verified and published to https://dev461--fisofid.netlify.app . No production deployment or shared Firebase writes performed. GitHub push was attempted through Git and the connector; both were rejected with HTTP 403 (Resource not accessible by integration).
+Status: implemented, locally verified and published to https://dev461--fisofid.netlify.app . No production deployment or shared Firebase writes performed. GitHub branch dev461-fix-egd290 is published.
 
 ## Root cause
 
@@ -24,6 +24,16 @@ The classifier feeds the generated points to the unchanged map renderer. A/B are
 
 ## Publication
 
-Only a draft preview is authorised. Never use --prod or Publish deploy. Netlify CLI is not yet authenticated. Project dashboard: https://app.netlify.com/projects/fisofid/deploys/6af0c5b8b8227d099f9c3313 . Netlify authorisation completed. Draft deploy 6af234e19be473c4e0d0e152 is ready and published_at is null. The alias is https://dev461--fisofid.netlify.app . Production deployment 6af0ce15c9762e6940a354f9 is unchanged before/after publication. Source files were prepared from the user-supplied deployment ZIP. GitHub local branch dev461-fix-egd290 contains an original-source baseline and the fix/test commit; remote writes require GitHub integration contents-write access.
+Only a draft preview is authorised. Never use --prod or Publish deploy. Netlify CLI is not yet authenticated. Project dashboard: https://app.netlify.com/projects/fisofid/deploys/6af0c5b8b8227d099f9c3313 . Netlify authorisation completed. Draft deploy 6af234e19be473c4e0d0e152 is ready and published_at is null. The alias is https://dev461--fisofid.netlify.app . Production deployment 6af0ce15c9762e6940a354f9 is unchanged before/after publication. Source files were prepared from the user-supplied deployment ZIP. GitHub branch dev461-fix-egd290 contains the original-source baseline, fixes and tests; write access was restored and the branch was pushed successfully.
 
 Preview-only safeguards: on fisofid draft Netlify hostnames, app AUTO PLOT uses local storage without opening the shared Firebase database, HAZPLOT push sending is suppressed, and account-management callables/sign-in logging are blocked. Firebase authentication itself remains in place. Production hostnames retain their original behaviour.
+
+## Follow-up: D4412/26 and D4413/26 — Marham
+
+Root cause: EGD220A/B were absent from the built-in dangerAreas collection and ENR metadata. Both NOTAMs are correctly ingested and classified as permanent Danger Area activations, but autoPibDangerAreaPayloads intentionally skips an activation when no permanent architecture matches. These are not TDAs and need no fabricated NOTAM polygon or Q-line fallback.
+
+Source: UK AIP ENR 5.1 effective 29 October 2026, https://www.aurora.nats.co.uk/htmlAIP/Publications/2026-10-29-AIRAC/html/eAIP/EG-ENR-5.1-en-GB.html . The two source table rows are retained in tests/fixtures/marham-aip.html. Both areas are a 5 NM circle centred at 523854N 0003302E. A: SFC–FL105; B: FL105–FL195. Both are activated by NOTAM, not H24. Native HAZDAM circle properties preserve the published centre/radius; 360 WGS84 vertices also provide geometry for existing conflict calculations.
+
+The screenshot NOTAMs have B=2611101030 and C=2611101900, with D absent. Tests verify inactive before the 15-minute warning, pending at 10:15, active from 10:30, inactive at 19:00 UTC. The existing B/C fallback required no change. Shared-footprint styling now uses the most active vertical band, preventing a B-only activation from appearing inactive because A owns the common outline. Independent labels, levels, activations and selection remain intact. Versioned aviationdata/hazdam/auth URLs invalidate the old immutable cached assets.
+
+Verification: npm test passes all ten test groups. Actual browser AUTO PLOT attaches D4412/26 and D4413/26 to the two programmed areas, draws one shared 9260 m circle with two independent labels, marks it active at 11:00, and inactive at 19:00 UTC. A B-only activation retains an active footprint. Prior TDA polygon/timing checks also pass. No external data writes or production deployment were performed during testing.
