@@ -1,0 +1,170 @@
+/* DEV448 operational styles deferred until authorised workspace loading. */
+
+  .rb-readout{background:#000 !important;border-color:#34424a !important;}
+  .rb-readout-row .lbl{color:#9fe8ff !important;font-weight:600;}
+  .rb-readout-row .val{color:#ffffff !important;}
+  .rb-input-row{align-items:center;}
+  .rb-input-row input.rb-end-input{width:100%;background:#061018;border:1px solid #375363;color:#ffffff;border-radius:4px;padding:5px 7px;font-family:var(--mono);font-size:12px;text-transform:uppercase;text-align:right;}
+  .rb-input-row input.rb-end-input:focus{outline:2px solid var(--cyan);outline-offset:1px;}
+  .rb-compact-buttons{display:flex;gap:5px;flex-wrap:nowrap;margin-top:6px;}
+  .rb-compact-buttons .btn{font-size:10px;padding:5px 6px;white-space:nowrap;}
+  .uk-wpt-marker{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:8px solid #4b5156;opacity:.82;}
+  .uk-wpt-label{font-family:var(--mono);font-size:8px;font-weight:600;color:#4b5156;opacity:.82;background:transparent;border:0;padding:0;white-space:nowrap;text-align:center;transform:translate(-50%,2px);text-shadow:0 0 2px rgba(255,255,255,.72);}
+  .london-fir-rp-triangle{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid #050505;filter:drop-shadow(0 0 1px rgba(255,255,255,.95));}
+  .london-fir-rp-label{font-family:var(--mono);font-size:8px;font-weight:800;line-height:1;color:#050505;white-space:nowrap;text-align:center;transform:translate(-50%,1px);text-shadow:-1px -1px 0 rgba(255,255,255,.98),1px -1px 0 rgba(255,255,255,.98),-1px 1px 0 rgba(255,255,255,.98),1px 1px 0 rgba(255,255,255,.98),0 0 2px #fff;pointer-events:none;}
+  .london-fir-boundary-line{pointer-events:none;}
+
+/* DEV 240 — top-right adjustable UTC operational clock */
+.utc-clock-panel{order:99;margin-left:0;min-width:148px;padding:5px 8px;border:1px solid #28495d;border-radius:7px;background:#07121b;text-align:center;font-family:var(--mono);color:#d7e5ee;position:relative;z-index:1200}
+.utc-clock-title{font-size:9px;letter-spacing:.16em;color:#5fd4ff;font-weight:800}
+.utc-clock-value{font-size:19px;line-height:1.05;font-weight:900;letter-spacing:.05em;color:#fff;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;white-space:nowrap;min-width:11ch}
+.utc-clock-date{font-size:9px;color:#8fa8b7;margin-top:2px}
+.utc-clock-btn{margin-top:4px;border:1px solid #31546c;background:#0d1d29;color:#cfe3ef;border-radius:4px;padding:3px 7px;font:700 9px var(--mono);cursor:pointer}
+.utc-clock-btn.primary{border-color:#3180a5;color:#72dcff}
+.utc-clock-edit{position:absolute;right:0;top:100%;margin-top:5px;width:245px;padding:10px;background:#08131d;border:1px solid #31546c;border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,.45);text-align:left}
+.utc-clock-edit label{display:block;font:700 9px var(--mono);color:#8fa8b7;margin-bottom:5px}
+.utc-clock-edit input{box-sizing:border-box;width:100%;background:#0d1d29;color:#e9f5fb;border:1px solid #31546c;border-radius:5px;padding:6px;font:11px var(--mono)}
+.utc-clock-manual-grid{display:grid;grid-template-columns:1.6fr .7fr .7fr;gap:6px;align-items:end}.utc-clock-manual-grid label{margin-bottom:3px}.utc-clock-manual-grid input{text-align:center}.utc-clock-manual-grid input[type="date"]{text-align:left}
+.utc-clock-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:7px}
+.utc-clock-status{font:700 9px var(--mono);color:#ffcc66;margin-top:6px;min-height:12px}
+.utc-clock-panel.test-time{border-color:#ffb648;box-shadow:0 0 0 1px rgba(255,182,72,.15) inset}
+.utc-clock-panel.test-time .utc-clock-title{color:#ffb648}
+body.operator-mode #clockEditBtn,body.operator-mode #clockEditPanel{display:none!important}
+@media(max-width:900px){.utc-clock-panel{min-width:118px}.utc-clock-date{display:none}.utc-clock-value{font-size:15px}}
+
+
+  .hazdam-area-card.hazdam-map-selected{
+    outline:2px solid #5fd4ff !important;
+    box-shadow:0 0 0 4px rgba(95,212,255,.14),0 0 22px rgba(95,212,255,.22);
+  }
+  .hazdam-area-notam-strip{
+    margin-top:10px;padding:9px 10px;border-top:1px solid #27485a;
+    display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11px;color:#91a9b7;
+  }
+  .hazdam-area-notam-strip b{color:#ffbd55;letter-spacing:.04em;}
+  .hazdam-area-notam-strip span:first-of-type{color:#dce9f1;font-weight:700;}
+  .hazdam-notam-promulgation{border-top:1px solid #284554;margin-top:10px;padding-top:10px;}
+  .hazdam-notam-promulgation>b{color:#ffbd55;}
+  .hazdam-notam-raw{white-space:pre-wrap;max-height:180px;overflow:auto;font-size:11px;line-height:1.35;color:#c7d6df;}
+
+
+  .hazdam-area-card.hazdam-card-editing{
+    border-color:#59cfff !important;
+    box-shadow:0 0 0 2px rgba(89,207,255,.12);
+  }
+  .hazdam-area-card.hazdam-card-editing input:not(:disabled),
+  .hazdam-area-card.hazdam-card-editing select:not(:disabled){
+    border-color:#3f7895;
+  }
+
+.hazdam-enr-time-note{color:#ffbd55!important;font-size:11px;line-height:1.35}
+
+  #pibChooseBtn, #openAutoPlotPib {
+    transition: transform .08s ease, filter .15s ease, opacity .15s ease, box-shadow .15s ease;
+  }
+  #pibChooseBtn[aria-busy="true"], #openAutoPlotPib[aria-busy="true"] {
+    cursor: wait !important;
+  }
+  #pibChooseBtn[aria-busy="true"]::before, #openAutoPlotPib[aria-busy="true"]::before {
+    content:""; width:12px; height:12px; margin-right:7px; flex:0 0 auto;
+    border:2px solid currentColor; border-right-color:transparent; border-radius:50%;
+    animation:ffapp-spin .7s linear infinite;
+  }
+  @keyframes ffapp-spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    #pibChooseBtn[aria-busy="true"]::before, #openAutoPlotPib[aria-busy="true"]::before { animation:none; }
+  }
+
+
+.fiso-grid-label-wrap{background:transparent!important;border:0!important;pointer-events:none!important}
+.fiso-grid-label{display:inline-block;font:600 8px/10px Arial,sans-serif;color:rgba(0,0,0,.78);background:rgba(255,255,255,.72);padding:0 2px;border-radius:2px;white-space:nowrap;pointer-events:none}
+.fiso-grid-lat{font:600 8px/10px Arial,sans-serif}
+.fiso-grid-lat-left{transform:translate(2px,-1px)}
+.fiso-grid-lat-right{transform:translate(-2px,-1px)}
+.fiso-grid-lon{transform:translate(-50%,-2px)}
+
+
+.fiso-cas-vector-label-wrap{background:transparent!important;border:0!important;box-shadow:none!important;pointer-events:none!important;}
+.fiso-cas-vector-label{display:inline-block;white-space:nowrap;font-family:Arial,Helvetica,sans-serif;font-size:7px;font-weight:600;line-height:1;opacity:.72;text-shadow:0 0 1px rgba(255,255,255,.92);transform:translate(2px,-3px);transform-origin:left center;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;}
+
+
+/* DEV422: Safari/Leaflet performance guard. Rich aircraft/TDB DOM is not painted during
+   the short zoom animation; it is restored at zoomend with current live positions. */
+#map.ffapp-aircraft-zooming .ffapp-aircraft-marker { visibility:hidden !important; }
+
+/* DEV451: a compact neutral status, never a route information panel. */
+.aircraft-track-status{max-width:min(330px,75vw);padding:4px 7px;background:rgba(3,11,18,.88);color:#d7e5ee;font:11px monospace;border:1px solid #31576a;overflow-wrap:anywhere;pointer-events:none}
+.recorded-aircraft{color:#39ff14;background:transparent;font-size:24px;line-height:24px;text-align:center;text-shadow:0 0 2px #000}
+
+/* Approved DEV452 corrections: popup content above aircraft/TDB panes. */
+#map .leaflet-popup-pane{z-index:1200!important;}
+.fiso-layers-control{box-shadow:none;}
+.fiso-layers-panel{box-sizing:border-box;width:312px;max-width:calc(100vw - 20px);max-height:calc(100dvh - 155px);overflow-y:auto}
+.fiso-layer-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.fiso-layer-grid label{min-width:0}
+.fiso-layer-grid .fiso-layer-wide{grid-column:1/-1;white-space:normal}
+.fiso-today-label{gap:5px}
+.fiso-today-label input{flex-shrink:0}
+#fisoTodayCountdown{font:9px/1 var(--mono);font-variant-numeric:tabular-nums;color:#b8ccd7;white-space:nowrap}
+#fisoTodayCountdown[hidden]{display:none}
+/* A dedicated flow row reserves space: warning never overlays the map/ticker. */
+#app{height:100dvh;}
+#app>main{min-height:0;}
+#fisoPermanentWarning{box-sizing:border-box;flex:0 0 auto;margin:0;padding:7px 12px;border-top:1px solid #986f2e;background:#0a151f;color:#ffe2a6;font:600 11px/1.4 var(--sans);overflow-wrap:break-word;}
+/* Keep the existing ticker inside its map row at every viewport size. */
+#app .notam-closure-ticker{position:absolute!important;bottom:0!important;}
+@media(max-width:600px){#fisoPermanentWarning{padding:6px 9px;font-size:11px;}}
+
+/* DEV454 approved mobile-only dismissal; desktop and panel content unchanged. */
+.dev454-panel-close,.dev454-info-heading{display:none;}
+@media(max-width:880px){
+  #app.dev454-mobile-no-nav{padding-bottom:env(safe-area-inset-bottom,0px);}
+  #map .leaflet-bottom{bottom:30px;}
+  .dev454-panel-title{display:flex;align-items:center;gap:6px;}
+  .dev454-panel-close{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:44px;padding:0;border:1px solid #31576a;border-radius:4px;background:#0a1a25;color:#72dcff;font:700 23px/1 var(--sans);cursor:pointer;touch-action:manipulation;}
+  .dev454-panel-close:focus-visible{outline:2px solid #72dcff;outline-offset:2px;}
+  .dev454-info-heading{display:flex;flex:0 0 auto;padding:6px 10px;border-bottom:1px solid var(--line);font:700 11px var(--mono);color:#72dcff;}
+  #app #stripsPanel:not(.mob-strips) #dev454StripsClose,#app #side:not(.open) .dev454-info-heading{display:none!important;}
+  #app #side.open{width:88vw!important;min-width:0!important;max-width:520px!important;flex-basis:auto!important;right:0!important;overflow-y:auto!important;overflow-x:hidden!important;}
+  #app #stripsPanel.mob-strips{width:100%!important;z-index:13000;}
+  #app #side.open,#app #stripsPanel.mob-strips{position:absolute!important;top:var(--dev454-panel-top,0px)!important;bottom:var(--dev454-panel-bottom,80px)!important;max-height:none!important;}
+  body.view-only-mode #stripsPanelHeader #dev454StripsClose,body.view-only-mode #side #dev454InfoClose{display:inline-flex!important;pointer-events:auto!important;opacity:1!important;}
+}
+@media(max-width:880px) and (prefers-reduced-motion:reduce){#app #side{transition:none;}}
+
+/* DEV454 approved revision: remove queue presentation only, at every viewport.
+   Keep the existing alert DOM, processing and stored data for separate repair. */
+#ffappOpqStrip,#ffappOpqPanel{display:none!important;}
+#app>main{padding-top:0!important;overflow:clip;}
+
+/* Reflow existing header controls after the fixed queue row is removed. */
+@media(min-width:701px) and (max-width:880px){
+  #app>header{min-height:40px;padding:0 8px;gap:5px;}
+}
+@media(max-width:700px){
+  #app>header{display:grid;grid-template-columns:minmax(0,1fr) 34px 118px;gap:5px;min-height:0;padding:3px 8px;}
+  #app>header .brand{grid-column:1;grid-row:1;min-width:0;}
+  #app>header .brand h1{font-size:clamp(16px,5.2vw,21px);white-space:nowrap;}
+  #app>header .search-box{grid-column:2/4;grid-row:1;min-width:0;gap:3px;}
+  #app>header .search-box input{width:0;min-width:0;flex:1 1 0;padding:5px 3px;}
+  #app>header .search-box .btn{padding:5px 6px;}
+  #app>header #headerSessionActions{grid-column:1;grid-row:2;margin-left:0;min-width:0;gap:6px;}
+  #app>header #panelToggle{grid-column:2;grid-row:2;}
+  #app>header #utcClockPanel{grid-column:3;grid-row:2;min-width:0;width:118px;margin:0;}
+}
+@media(max-width:700px){
+  body.view-only-mode #app>header #headerSessionActions{grid-column:1/3;}
+}
+@media(max-width:360px){
+  #app>header #headerSessionActions .header-action-btn{padding:8px 6px;font-size:10px;white-space:nowrap;}
+  #app>header #headerRoleLabel{font-size:9px;}
+}
+
+/* DEV455: reserved non-live clock warning; no floating history-status replacement. */
+#fisoMapTimeWarning{box-sizing:border-box;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:5px 14px;flex-wrap:wrap;padding:6px 12px;background:#302307;border-top:1px solid #be8d2d;color:#ffe6a1;font:600 11px/1.4 var(--sans);}
+#fisoMapTimeWarning[hidden]{display:none!important;}
+#fisoMapTimeSelectedUTC{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.notam-schedule-uncertain,.notam-schedule-upcoming{font:600 10px/1.4 var(--sans);color:#ffd78b;margin:5px 0;}
+@media(max-width:700px){#fisoMapTimeWarning{padding:6px 9px;align-items:flex-start;flex-direction:column;}}
+
+/* DEV456: one compact read-only development playback row; no dashboard changes. */

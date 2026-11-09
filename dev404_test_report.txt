@@ -1,0 +1,18 @@
+FISO FID DEV404 TEST REPORT
+
+Build changes:
+- NATS LIVE PIB operational status panel: last checked, upstream PIB updated time, NOTAM count, next check, AUTO PLOT state.
+- 15-minute live check retained.
+- Upstream X-NATS-Last-Modified displayed separately from local check time.
+- Added/removed NOTAM IDs are diffed on each changed live PIB.
+- Changed NOTAM link opens changed-notams.html in a new tab and shows full stored details for added and removed records.
+- Last valid PIB retained on feed failure; health panel turns red.
+
+Validation:
+- node --check app.js: PASS
+- node --check notamengine.js: PASS
+- node --check ffapp-auth.js: PASS
+- node --check Netlify functions: PASS
+- ZIP integrity: see build output
+
+Live acceptance still requires deployment to Netlify because NATS PIB.xml cannot be fetched from the build container.

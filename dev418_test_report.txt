@@ -1,0 +1,10 @@
+{
+  "airfields": 116,
+  "withPhones": 113,
+  "withFreqs": 110,
+  "withRunways": 116,
+  "withHours": 116,
+  "phones": 382,
+  "freqs": 448
+}
+Source: EAIP.zip, AIRAC 09/2026 effective 03 SEP 2026

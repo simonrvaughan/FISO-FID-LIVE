@@ -1,0 +1,5 @@
+DEV422 - NOTAM search requires series letter
+
+Accepted examples: B1467, B1467/26.
+The series letter is mandatory, preventing a numeric-only search such as 1467 from matching a NOTAM in the wrong series.
+Spaces/hyphens are still tolerated while typing, but a valid search must resolve to a letter + number, with optional /year.

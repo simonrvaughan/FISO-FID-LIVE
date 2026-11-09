@@ -1,0 +1,59 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "fiso": {
+      "fisoradar_hazards_v1": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.role === 'Admin' || auth.token.admin === true)"
+      },
+      "fisoradar_airports_v2": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.role === 'Admin' || auth.token.admin === true)"
+      },
+      "fisoradar_airfields_v1": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.role === 'Admin' || auth.token.admin === true)"
+      },
+      "fisoradar_pib_v1": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.role === 'Admin' || auth.token.admin === true)"
+      },
+      "fisoradar_aara_manual_v1": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.role === 'Admin' || auth.token.admin === true)"
+      },
+      "fiso_para": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.role === 'Admin' || auth.token.admin === true)"
+      },
+      "fisoradar_hazdam_state_v1": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.role === 'Admin' || auth.token.admin === true)"
+      },
+      "pushTokens": {
+        ".read": false,
+        "$tokenKey": {
+          ".write": "auth != null",
+          ".validate": "newData.hasChildren(['token','createdAt','updatedAt'])"
+        }
+      },
+      "alertState": {
+        ".read": false,
+        ".write": false
+      },
+      "alertHistory": {
+        ".read": false,
+        ".write": false
+      },
+      "auth": {
+        ".read": false,
+        ".write": false
+      },
+      "fisoradar_auto_pib_hazards_v1": {
+        ".read": true,
+        ".write": "auth != null && (auth.token.role === 'Admin' || auth.token.admin === true)"
+      }
+    }
+  }
+}

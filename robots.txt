@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /
+
+# FFApp is a private operational development app. Do not crawl or index.

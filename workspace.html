@@ -1,0 +1,884 @@
+<!-- DEV448 authenticated operational workspace; loaded by ffapp-auth.js. -->
+<!-- Hidden SVG placed directly in <body> so pattern IDs are always in the document.
+     CSS fill:url(#da-hatch-active) searches the whole document, not just the local SVG. -->
+<svg id="da-pattern-defs" xmlns="http://www.w3.org/2000/svg"
+     style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;">
+  <defs>
+    <pattern id="da-hatch-active" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45 0 0)">
+      <rect width="10" height="10" fill="rgba(200,0,0,0.28)"/>
+      <line x1="0" y1="0" x2="0" y2="10" stroke="#ff2020" stroke-width="3.5"/>
+    </pattern>
+    <pattern id="da-hatch-warn" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45 0 0)">
+      <rect width="10" height="10" fill="rgba(200,110,0,0.18)"/>
+      <line x1="0" y1="0" x2="0" y2="10" stroke="#ffb648" stroke-width="2.5"/>
+    </pattern>
+  </defs>
+</svg>
+
+<div id="app">
+
+  <header>
+    <div class="brand">
+      <span class="dot" id="liveDot"></span>
+      <h1>FISO <span>FID APP</span></h1>
+    </div>
+    <div class="ffapp-update-info" id="ffappUpdateInfo">DEV 448</div>
+    <span id="apiStatus" class="status" hidden aria-hidden="true"></span>
+    <div id="utcClockPanel" class="utc-clock-panel" aria-label="Operational UTC clock">
+      <div class="utc-clock-title">UTC</div>
+      <div id="clock" class="utc-clock-value">--:--:--</div>
+      <div id="clockDate" class="utc-clock-date">-- --- ----</div>
+      <button type="button" id="clockEditBtn" class="utc-clock-btn">Edit time</button>
+      <div id="clockEditPanel" class="utc-time-modal" hidden role="dialog" aria-modal="true" aria-labelledby="utcTimeModalTitle">
+        <div class="utc-time-modal-card">
+          <div class="utc-time-modal-head"><strong id="utcTimeModalTitle">EDIT UTC TIME</strong><button type="button" id="clockCancelX" class="utc-time-close" aria-label="Close">&times;</button></div>
+          <div class="utc-time-modal-body">
+            <section class="utc-time-fields">
+              <div class="utc-time-section-title">Set test UTC date and time</div>
+              <div class="utc-clock-manual-grid utc-clock-date-time-grid">
+                <div><label for="clockEditDay">Day (UTC)</label><input id="clockEditDay" type="number" min="1" max="31" step="1" inputmode="numeric" placeholder="DD"><small>01 – 31</small></div>
+                <div><label for="clockEditMonth">Month (UTC)</label><input id="clockEditMonth" type="number" min="1" max="12" step="1" inputmode="numeric" placeholder="MM"><small>01 – 12</small></div>
+                <div><label for="clockEditYear">Year (UTC)</label><input id="clockEditYear" type="number" min="2020" max="2099" step="1" inputmode="numeric" placeholder="YYYY"><small>4 digits</small></div>
+                <div><label for="clockEditHour">Hour (UTC)</label><input id="clockEditHour" type="number" min="0" max="23" step="1" inputmode="numeric" placeholder="HH"><small>00 – 23</small></div>
+                <div><label for="clockEditMinute">Minute (UTC)</label><input id="clockEditMinute" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="MM"><small>00 – 59</small></div>
+              </div>
+            </section>
+            <section class="utc-time-preview"><div class="utc-time-section-title">Current time preview</div><div id="clockPreview" class="utc-time-preview-value">--:--:00 UTC</div><div id="clockPreviewDate" class="utc-time-preview-date">-- --- ----</div><small>Seconds will be set to 00 on save</small></section>
+          </div>
+          <div class="utc-time-info">The clock will continue running from the time you set.<br>All NOTAM activations and timed displays will use this test time.</div>
+          <div class="utc-clock-actions">
+            <button type="button" id="clockSaveBtn" class="utc-clock-btn primary">Save</button>
+            <button type="button" id="clockCancelBtn" class="utc-clock-btn">Cancel</button>
+            <button type="button" id="clockResetBtn" class="utc-clock-btn reset">Reset to UTC</button>
+          </div>
+          <div id="clockTestStatus" class="utc-clock-status"></div>
+        </div>
+      </div>
+    </div>
+    <div class="admin-access" id="adminAccess">
+      <button type="button" class="admin-access-toggle" id="adminAccessToggle" hidden>USER</button>
+      <div class="admin-access-popover" id="adminAccessPopover" hidden>
+        <div class="admin-access-title">SIGNED IN</div>
+        <div id="ffauthHeaderNumber" style="font-weight:800;margin-bottom:4px;"></div>
+        <div id="ffauthHeaderRole" class="small" style="margin-bottom:10px;"></div>
+        <div class="admin-access-actions">
+          <button type="button" class="btn primary" id="ffauthManageUsersBtn" hidden>Manage Users</button>
+          <button type="button" class="btn" id="ffauthLogoutBtn">Log Out</button>
+        </div>
+      </div>
+    </div>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Location / Callsign / squawk / waypoint" maxlength="25" autocomplete="off">
+      <button class="btn" id="searchBtn" aria-label="Search" type="button">&#128269;</button>
+      <button class="btn" id="searchClearBtn" aria-label="Clear search" title="Clear search" type="button">Clear</button>
+      <span class="search-status" id="searchStatus"></span>
+    </div>
+    <div class="header-session-actions" id="headerSessionActions" hidden>
+      <span class="header-role-label" id="headerRoleLabel">OPERATOR</span>
+      <button type="button" class="header-action-btn" id="ffauthSwitchUserBtn">Switch User</button>
+      <button type="button" class="header-action-btn danger" id="ffauthHeaderLogoutBtn">Log Off</button>
+    </div>
+    <button class="panel-toggle" id="panelToggle" aria-label="Toggle panel" type="button">&#9776;</button>
+  </header>
+
+<!-- DEV457 DASHBOARD BEGIN -->
+<section id="dev457Dashboard" aria-label="Supplementary aircraft dashboard" data-state="unavailable">
+  <div class="dev457-dashboard-row">
+    <button type="button" class="dev457-alert dev457-similar" data-dashboard-detail="similar" aria-expanded="false" aria-controls="dev457Details"><strong>Similar Callsigns:</strong><span id="dev457SimilarText">Waiting for feed</span><span aria-hidden="true">›</span></button>
+    <button type="button" class="dev457-alert dev457-joiners" data-dashboard-detail="joiners" aria-expanded="false" aria-controls="dev457Details"><strong>0027 Joiners:</strong><span id="dev457JoinersText">Waiting for feed</span><span aria-hidden="true">›</span></button>
+    <div class="dev457-counters" aria-label="Unique aircraft reporting squawks in current feed">
+      <span class="dev457-counter"><span>1177</span><b id="dev457Count1177">—</b></span><span class="dev457-counter"><span>0027</span><b id="dev457Count0027">—</b></span><span class="dev457-counter"><span>0030</span><b id="dev457Count0030">—</b></span><span class="dev457-counter"><span>7700</span><b id="dev457Count7700">—</b></span>
+    </div>
+    <span id="dev457Freshness" role="status">Waiting for feed</span>
+  </div>
+  <div id="dev457Details" hidden></div>
+</section>
+<style id="dev457DashboardStyles">
+#dev457Dashboard{flex:0 0 auto;min-width:0;padding:5px 8px;box-sizing:border-box;background:#07131c;border-bottom:1px solid #304653;color:#e8f1f6;font:600 11px/1.3 var(--sans);}
+.dev457-dashboard-row{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1.15fr) auto auto;gap:6px;align-items:center;}
+#dev457Dashboard .dev457-alert{display:flex;align-items:center;gap:6px;min-width:0;height:30px;padding:4px 8px;border-radius:5px;font:inherit;cursor:pointer;white-space:nowrap;text-align:left;touch-action:manipulation;}
+.dev457-alert strong{flex-shrink:0;font-size:11px;}.dev457-alert>span:first-of-type{min-width:0;overflow:hidden;text-overflow:ellipsis;flex:1;}.dev457-alert>span:last-child{font-size:18px;line-height:1;}.dev457-alert[aria-expanded=true]>span:last-child{transform:rotate(90deg);}
+#dev457Dashboard .dev457-similar{color:#fff2df;background:#66533d;border:1px solid #a58b68;}
+#dev457Dashboard .dev457-joiners{color:#e6f8e8;background:#173f2b;border:1px solid #437959;}
+.dev457-counters{display:flex;gap:5px;}.dev457-counter{display:flex;gap:6px;align-items:center;justify-content:space-between;border:1px solid #355568;border-radius:5px;background:#0b1a25;padding:4px 6px;min-width:46px;font:600 11px/1.2 var(--mono);}.dev457-counter b{color:#fff;background:#344e5e;border-radius:3px;padding:1px 5px;min-width:1ch;text-align:center;font-variant-numeric:tabular-nums;}
+#dev457Freshness{font:600 10px/1.3 var(--sans);white-space:nowrap;color:#aec4d1;}#dev457Dashboard[data-state=fresh] #dev457Freshness{color:#81d99e;}#dev457Dashboard[data-state=stale] #dev457Freshness,#dev457Dashboard[data-state=partial] #dev457Freshness{color:#e7ca88;}
+#dev457Details{margin-top:4px;padding:4px 8px;max-height:100px;box-sizing:border-box;overflow:auto;overscroll-behavior:contain;border:1px solid #304653;border-radius:4px;background:#0d1a24;color:#d9e7ee;font:11px/16px var(--sans);}#dev457Details[hidden]{display:none;}#dev457Details p{font:10px/14px var(--sans);color:#a7bdca;margin:0 0 4px;}.dev457-detail-row{overflow-wrap:anywhere;}
+#dev457Dashboard button:focus-visible{outline:2px solid #72dcff;outline-offset:2px;}
+@media(max-width:1050px){.dev457-dashboard-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:4px 6px;}.dev457-similar{grid-column:1/2}.dev457-joiners{grid-column:2/4}.dev457-counters{grid-column:1/3}#dev457Freshness{grid-column:3;text-align:right;}}
+@media(max-width:600px){#dev457Dashboard{padding:4px 7px;}.dev457-dashboard-row{grid-template-columns:minmax(0,1fr) auto;gap:3px 4px;}#dev457Dashboard .dev457-alert{grid-column:1/-1;height:27px;padding:3px 7px;gap:5px;font-size:10px;}.dev457-alert strong{font-size:10px}.dev457-counters{grid-column:1;gap:4px;justify-content:space-between;}.dev457-counter{padding:3px 4px;min-width:0;gap:4px;font-size:10px;}.dev457-counter b{padding:1px 4px;}#dev457Freshness{grid-column:2;font-size:9px;max-width:104px;overflow:hidden;text-overflow:ellipsis;}}
+</style>
+<!-- DEV457 DASHBOARD END -->
+
+  <main class="info-collapsed strips-collapsed">
+    <div id="stripsPanel">
+      <div id="stripsPanelHeader">
+        <span class="dev454-panel-title">Strips <button type="button" id="dev454StripsClose" class="dev454-panel-close" aria-label="Close STRIPS and return to map" aria-controls="stripsPanel">×</button><span id="stripsLiveCount" style="font-size:10px;color:var(--green);font-family:var(--mono);"></span></span>
+        <button class="btn" id="createBlankStripBtn" type="button">+ Blank</button>
+      </div>
+      <div id="stripsList"></div>
+    </div>
+    <div id="map"></div>
+    <div id="notamClosureTicker" class="notam-closure-ticker" role="status" aria-live="polite" aria-label="All current NOTAMs ticker">
+      <div class="notam-ticker-left-stack">
+        <label class="notam-ticker-search-label" for="notamTickerSearch">NOTAM SEARCH</label>
+        <input id="notamTickerSearch" class="notam-ticker-search" type="search" inputmode="text" autocomplete="off" spellcheck="false" placeholder="SEARCH e.g. B1467/26" aria-label="Search current NOTAM ticker">
+        <div class="notam-closure-ticker-label">NOTAM TICKER <button type="button" id="notamChangeIndicator" class="notam-change-indicator" title="NOTAM changes in the last 90 minutes">NOTAM CHANGES</button></div>
+      </div>
+      <div class="notam-closure-ticker-window">
+        <div id="notamClosureTickerTrack" class="notam-closure-ticker-track">
+          <span class="notam-closure-ticker-copy">NO ELIGIBLE NOTAMS IN CURRENT PIB</span>
+          <span class="notam-closure-ticker-copy" aria-hidden="true">NO ELIGIBLE NOTAMS IN CURRENT PIB</span>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="stripsCollapseHandle" class="side-collapse-handle strips-handle" title="Show / hide strips" aria-label="Show or hide strips"><span>STRIPS</span></button>
+    <button type="button" id="infoCollapseHandle" class="side-collapse-handle info-handle" title="Show / hide info panel" aria-label="Show or hide info panel"><span>INFO</span></button>
+
+    <!-- Chart setup wizard — shown over map when eVFR selected but no tiles loaded -->
+    <div id="chartSetupOverlay" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;z-index:800;pointer-events:none;">
+      <div id="chartSetupBox" style="pointer-events:auto;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+        background:#0d1620;border:1px solid #1c6a8a;border-radius:8px;padding:28px 32px;max-width:460px;width:90%;
+        box-shadow:0 0 40px rgba(95,212,255,.18);text-align:center;">
+        <div style="font-size:26px;margin-bottom:10px;">??</div>
+        <h2 style="margin:0 0 8px;font-size:16px;color:#5fd4ff;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;">eVFR CHART SETUP</h2>
+        <p style="margin:0 0 18px;font-size:13px;color:#9ab4be;line-height:1.5;">Load your eVFR 500K Southern England GeoTIFF. The chart is processed entirely in your browser — no data leaves your machine. Once loaded it stays sharp at all zoom levels.</p>
+        <label id="chartSetupDropzone" style="display:block;border:2px dashed #2f6b85;border-radius:6px;padding:22px;cursor:pointer;margin-bottom:14px;transition:border-color .2s;">
+          <input type="file" id="chartSetupFile" accept=".tif,.tiff,image/tiff" style="display:none;">
+          <div id="chartSetupDropLabel" style="font-size:13px;color:#7fa8b8;">Click to select <code style="color:#5fd4ff;">eVFR_500K_..._GEO.tif</code><br><span style="font-size:11px;opacity:.7;">or drag and drop here</span></div>
+        </label>
+        <button id="chartSetupProcess" class="btn primary" style="width:100%;font-size:14px;padding:10px;" disabled type="button">Load Chart</button>
+        <div id="chartSetupProgress" style="margin-top:14px;display:none;">
+          <div style="height:4px;background:#162230;border-radius:2px;overflow:hidden;margin-bottom:8px;">
+            <div id="chartSetupBar" style="height:100%;width:0%;background:linear-gradient(90deg,#2f9bff,#5fd4ff);transition:width .3s;border-radius:2px;"></div>
+          </div>
+          <p id="chartSetupStatus" style="font-size:12px;color:#9ab4be;margin:0;font-family:'IBM Plex Mono',monospace;"></p>
+        </div>
+      </div>
+    </div>
+
+    <aside id="acInfo" class="ac-info">
+      <button class="ac-info-close" id="acInfoClose" aria-label="Close" type="button">&times;</button>
+      <h3 class="ac-info-title">Selected aircraft</h3>
+      <div class="ac-info-row"><span class="lbl">Callsign</span><span class="val" id="aiCallsign">&ndash;</span></div>
+      <div class="ac-info-row"><span class="lbl">Squawk</span><span class="val" id="aiSquawk">&ndash;</span></div>
+      <div class="ac-info-row"><span class="lbl">Type</span><span class="val" id="aiType">&ndash;</span></div>
+      <div class="ac-info-row"><span class="lbl">Altitude</span><span class="val" id="aiAlt">&ndash;</span></div>
+      <div class="ac-info-row"><span class="lbl">Heading</span><span class="val" id="aiHdg">&ndash;</span></div>
+      <div class="ac-info-row"><span class="lbl">Latitude</span><span class="val" id="aiLat">&ndash;</span></div>
+      <div class="ac-info-row"><span class="lbl">Longitude</span><span class="val" id="aiLon">&ndash;</span></div>
+      <div class="ac-info-row"><span class="lbl">Mode S</span><span class="val" id="aiHex">&ndash;</span></div>
+      <p class="hint">Track line shows positions recorded since this session began &mdash; not the aircraft&rsquo;s full historical flight.</p>
+    </aside>
+
+    <div id="rbFloatingDialog" class="rb-floating-dialog" role="dialog" aria-modal="false" aria-labelledby="rbFloatingTitle" hidden>
+      <div class="rb-floating-header">
+        <div id="rbFloatingTitle" class="rb-floating-title">Range and Bearing</div>
+        <button id="rbFloatingClose" class="rb-floating-close" type="button" aria-label="Close Range and Bearing">&times;</button>
+      </div>
+      <div class="rb-floating-body">
+        <div class="rb-floating-row">
+          <label for="rbfStart">Start</label>
+          <div class="rb-input-wrap"><input id="rbfStart" autocomplete="off" placeholder="Airfield, location, reporting point or position"><div id="rbfStartSuggest" class="rb-suggest" hidden></div></div>
+          <button id="rbfStartHook" class="btn" type="button">Start on aircraft</button>
+        </div>
+        <div class="rb-floating-row">
+          <label for="rbfEnd">End</label>
+          <div class="rb-input-wrap"><input id="rbfEnd" autocomplete="off" placeholder="Airfield, location, reporting point or position"><div id="rbfEndSuggest" class="rb-suggest" hidden></div></div>
+          <button id="rbfEndHook" class="btn" type="button">End on aircraft</button>
+        </div>
+        <div class="rb-floating-actions">
+          <button id="rbfUpdate" class="btn primary" type="button">Update</button>
+          <button id="rbfCentre" class="btn" type="button">Centre Line</button>
+          <button id="rbfClear" class="btn" type="button">Clear Line</button>
+        </div>
+        <div class="rb-floating-results">
+          <div><span>Range</span><strong id="rbfRange">&ndash;</strong></div>
+          <div><span>Bearing</span><strong id="rbfBearing">&ndash;</strong></div>
+          <div><span>ETA</span><strong id="rbfEta" title="Estimated arrival UTC at current ground speed">&ndash;</strong></div>
+        </div>
+        <div id="rbfStatus" class="rb-floating-status">Select Start or End, then type a reporting point / position or click an aircraft.</div>
+      </div>
+    </div>
+
+    <div id="playbackBar" class="playback-bar">
+      <div class="pb-row pb-row-main">
+        <div class="pb-date" id="pbDateLabel">Session replay</div>
+        <button class="pb-icon-btn" id="pbPlayPause" aria-label="Play" type="button">&#9654;</button>
+        <button class="pb-icon-btn" id="pbStepBack" aria-label="Step back" title="Back 30s" type="button">&#9664;</button>
+        <div class="pb-scrubber-wrap">
+          <input type="range" id="pbScrubber" min="0" max="1000" value="1000">
+          <div class="pb-scrubber-readout" id="pbTimeReadout">&ndash;</div>
+        </div>
+        <button class="pb-icon-btn" id="pbStepFwd" aria-label="Step forward" title="Forward 30s" type="button">&#9654;&#9654;</button>
+        <button class="pb-icon-btn" id="pbClose" aria-label="Close playback" type="button">&times;</button>
+      </div>
+      <div class="pb-row pb-row-sliders">
+        <div class="pb-slider-group">
+          <label>Zoom timeline <span class="hint-q" title="Narrows the scrubber to recent minutes, for finer control on long sessions">?</span></label>
+          <input type="range" id="pbZoom" min="1" max="10" value="1">
+        </div>
+        <div class="pb-slider-group">
+          <label>Speed <span class="hint-q" title="How fast time advances while playing">?</span> <span id="pbSpeedLabel">4x</span></label>
+          <input type="range" id="pbSpeed" min="1" max="20" value="4">
+        </div>
+      </div>
+      <p class="hint pb-hint">Session replay only &mdash; this replays positions recorded locally since this tab was opened. Select an aircraft on the map for its separate centrally recorded historical track.</p>
+    </div>
+
+    <aside id="side" data-info-pin-locked inert aria-hidden="true">
+      <div class="dev454-info-heading dev454-panel-title">INFO <button type="button" id="dev454InfoClose" class="dev454-panel-close" aria-label="Close INFO and return to map" aria-controls="side">×</button></div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="traffic" type="button">Traffic</button>
+        <button class="tab-btn" data-tab="rb" type="button"><span>CUSTOM</span><span>LOCATION</span></button>
+        <button class="tab-btn" data-tab="chart" type="button">Chart</button>
+        <button class="tab-btn" data-tab="hazards" type="button">Hazard Plotting</button>
+        <button class="tab-btn" data-tab="notams" type="button"><span>NOTAM</span><span>PLOTTING</span></button>
+        <button class="tab-btn" data-tab="routes" type="button"><span>FLIGHT</span><span>ROUTES</span></button>
+        <button class="tab-btn" data-tab="airfields" type="button">Downloads</button>
+        <button class="tab-btn" data-tab="notifications" type="button">Notifications</button>
+      </div>
+
+      <!-- TRAFFIC TAB -->
+      <div class="tabpanel" id="tab-traffic">
+        <h2 class="section-title">Home point</h2>
+        <div class="row2">
+          <div class="field"><label for="homeLat">Latitude</label><input type="number" id="homeLat" step="0.0001"></div>
+          <div class="field"><label for="homeLon">Longitude</label><input type="number" id="homeLon" step="0.0001"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="radiusNm">Search radius (NM, max 250)</label><input type="number" id="radiusNm" min="1" max="250"></div>
+          <div class="field"><label for="refreshSec">Refresh (seconds, min 5)</label><input type="number" id="refreshSec" min="5" max="120"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="applyTraffic" type="button">Apply &amp; restart feed</button>
+          <button class="btn" id="centerHome" type="button">Re-centre map</button>
+        </div>
+        <p class="hint">Feeds: <code>airplanes.live</code> (primary) + <code>adsb.lol</code> (merged) + <code>OpenSky</code> (supplemental, 30s). Centred on EGBB by default. Multiple sources increase coverage.</p>
+
+        <div class="hazdam-panel" id="trafficPlaybackPanel" style="margin:12px 0 14px 0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="color:#5fd4ff;font-size:12px;font-weight:700;letter-spacing:.05em;">PLAYBACK</div>
+              <div class="hint" style="margin-top:4px;">Replay aircraft positions recorded locally during this browser session.</div>
+            </div>
+            <button class="btn" id="playbackToggleBtn" type="button">&#9654; Playback</button>
+          </div>
+        </div>
+
+        <div class="hazdam-panel" id="pchPrefsPanel" style="margin:12px 0 14px 0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:#5fd4ff;font-size:12px;font-weight:700;letter-spacing:.05em;">PCH <span style="color:#d7e5ee;font-weight:500;">— USER PREFERENCES</span></span>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="pchEnabled" checked> Enabled
+            </label>
+          </div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+            <label style="font-size:11px;color:#7fa8b8;display:flex;align-items:center;gap:5px;">
+              <span style="color:#ff8800;">?</span> Lateral limits
+              <select id="pchLateralNm" style="width:82px;background:#0f1e2d;border:1px solid #1e3a50;color:#c8d8e4;padding:3px 4px;border-radius:3px;font-size:11px;">
+                <option value="2">2 NM</option>
+                <option value="3">3 NM</option>
+                <option value="5" selected>5 NM</option>
+                <option value="7">7 NM</option>
+                <option value="10">10 NM</option>
+              </select>
+            </label>
+            <label style="font-size:11px;color:#7fa8b8;display:flex;align-items:center;gap:5px;">
+              <span style="color:#ff2200;">?</span> Vertical limits
+              <select id="pchVerticalFt" style="width:90px;background:#0f1e2d;border:1px solid #1e3a50;color:#c8d8e4;padding:3px 4px;border-radius:3px;font-size:11px;">
+                <option value="250">250 ft</option>
+                <option value="500" selected>500 ft</option>
+                <option value="750">750 ft</option>
+                <option value="1000">1000 ft</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint" id="pchStatus" style="margin-top:8px;">PCH triggers aircraft-to-aircraft alerts using the selected lateral and vertical limits.</p>
+        </div>
+
+        <details class="hint" id="aircraftDataLicenceNotice">
+          <summary>Aircraft history data source and licence</summary>
+          <p>Recorded aircraft positions: <a href="https://www.adsb.lol/" target="_blank" rel="noopener">adsb.lol</a>, licensed under the <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">Open Database Licence (ODbL) 1.0</a>. Attribution and applicable database share-alike and access obligations accompany reuse. This data licence is separate from FISOFID software and NOTAM-source terms. Recorded coverage may be incomplete; gaps are not inferred positions.</p>
+        </details>
+
+        <h2 class="section-title">Layers</h2>
+        <div class="field"><label><input type="checkbox" id="toggleAircraft" style="width:auto;margin-right:6px;">Aircraft</label></div>
+        <div class="field" style="margin-left:16px;">
+          <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="checkbox" id="toggleSqkFilter" style="width:auto;margin-right:4px;">Show SSR squawks only (1177, 0027, 0030, 7400, 7500, 7600, 7700, 0037)</label>
+          <div id="customSqkFields" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+            <input type="text" class="custom-sqk-input" maxlength="4" placeholder="Custom sqk 1" style="font-family:var(--mono);font-size:11px;">
+            <input type="text" class="custom-sqk-input" maxlength="4" placeholder="Custom sqk 2" style="font-family:var(--mono);font-size:11px;">
+            <input type="text" class="custom-sqk-input" maxlength="4" placeholder="Custom sqk 3" style="font-family:var(--mono);font-size:11px;">
+            <input type="text" class="custom-sqk-input" maxlength="4" placeholder="Custom sqk 4" style="font-family:var(--mono);font-size:11px;">
+            <input type="text" class="custom-sqk-input" maxlength="4" placeholder="Custom sqk 5" style="font-family:var(--mono);font-size:11px;">
+          </div>
+        </div>
+        <div class="field"><label><input type="checkbox" id="toggleFL195" checked style="width:auto;margin-right:6px;">Hide traffic above FL195</label></div>
+        <div class="field"><label><input type="checkbox" id="toggleDataBlocks" checked style="width:auto;margin-right:6px;">Show data blocks (TDB)</label></div>
+        <div class="field fiso-size-control fiso-size-control-compact"><label for="trafficSizeSlider">Aircraft + TDB size <b id="trafficSizeValue">5</b></label><input type="range" id="trafficSizeSlider" min="1" max="9" step="1" value="5" list="sizeGrades"><div class="fiso-size-scale"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div></div>
+        <datalist id="sizeGrades"><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option><option value="5"></option><option value="6"></option><option value="7"></option><option value="8"></option><option value="9"></option></datalist>
+        <div class="field"><label><input type="checkbox" id="toggleHazards" checked style="width:auto;margin-right:6px;">NOTAM Hazard pins (gliding/parachute/display/misc/bbmf)</label></div>
+        <div class="field"><label title="When selected, hides plotted NOTAMs whose upper limit is below 1000 ft. The NOTAM remains in the PIB ticker and search."><input type="checkbox" id="filterNotamsBelow1000" checked style="width:auto;margin-right:6px;">Hide plotted NOTAMs below 1000 ft</label></div>
+        <div class="field"><label><input type="checkbox" id="toggleUkWaypoints" checked style="width:auto;margin-right:6px;">UK FIR Waypoints</label></div>
+              <div class="field"><label><input type="checkbox" id="toggleVectorLines" checked style="width:auto;margin-right:6px;">Squawk vector lines (10min, 1177/0027/0030/74-7700)</label></div>
+        <div class="field"><label><input type="checkbox" id="toggleAirfields" checked style="width:auto;margin-right:6px;">Airfields</label></div>
+
+        <div class="field"><label><input type="checkbox" id="toggleRadar" style="width:auto;margin-right:6px;">Weather radar (rain)</label></div>
+        <div class="field" id="radarOpacityField" style="display:none;"><label for="radarOpacity">Rain layer opacity</label><input type="range" id="radarOpacity" min="0.1" max="1" step="0.05" value="0.65"></div>
+        <div hidden><input type="checkbox" id="toggleSatellite"><input type="range" id="satelliteOpacity" min="0.1" max="1" step="0.05" value="0.55"><span id="satelliteOpacityField"></span></div>
+        <div class="field"><label for="baseStyle">Base map style</label>
+          <select id="baseStyle">
+            <option value="standard">Standard OSM</option>
+            <option value="fiso-low">FISOFID LOW</option>
+            <option value="fiso-high">FISOFID HIGH</option>
+            <option value="evfr-south">eVFR 500K Southern England</option>
+          </select>
+        </div>
+        <p class="hint">Manage eVFR chart editions, including uploading a new Southern or Northern sheet, in the Chart tab.</p>
+
+        <h2 class="section-title">Custom squawk highlight (TDB)</h2>
+        <p class="hint">Pick any squawk and a colour to outline its data block with &mdash; separate from the built-in 1177/0027 and emergency highlighting above.</p>
+        <div class="row2">
+          <div class="field"><label for="hlSquawk">Squawk</label><input type="text" id="hlSquawk" maxlength="4" placeholder="e.g. 4321"></div>
+          <div class="field"><label for="hlColor">Colour</label><input type="color" id="hlColor" value="#ffe14d" style="padding:2px;height:34px;"></div>
+        </div>
+        <button class="btn primary full" id="hlAdd" type="button">Add highlight</button>
+        <div id="hlList" style="margin-top:10px;"></div>
+
+        <h2 class="section-title">Visible traffic (<span id="acCount">0</span>)</h2>
+        <div id="acList"><p class="empty-note">No data yet.</p></div>
+      </div>
+      <!-- CUSTOM LOCATIONS TAB -->
+      <div class="tabpanel hidden" id="tab-rb">
+        <div class="custom-location-shell">
+          <div class="custom-location-toolbar">
+            <div class="field custom-search-field">
+              <label for="customLocationSearch">Search custom locations</label>
+              <input id="customLocationSearch" list="customLocationSearchList" placeholder="Start typing a location name…" autocomplete="off">
+              <datalist id="customLocationSearchList"></datalist>
+            </div>
+            <div class="field">
+              <label for="customLocationSelect">Saved locations</label>
+              <select id="customLocationSelect"><option value="">Select a custom location…</option></select>
+            </div>
+          </div>
+
+          <div class="custom-location-card">
+            <div class="custom-location-card-title">Custom Location Details</div>
+            <div class="field"><label for="customLocationName">Name</label><div class="custom-location-name-row"><input id="customLocationName" maxlength="80" placeholder="e.g. Farm Strip North"><label class="custom-location-show-label"><input id="customLocationShowOnMap" type="checkbox"> Show on map</label></div></div>
+            <div class="row2">
+              <div class="field"><label for="customLocationLat">Latitude</label><input id="customLocationLat" inputmode="decimal" placeholder="51.123456"></div>
+              <div class="field"><label for="customLocationLon">Longitude</label><input id="customLocationLon" inputmode="decimal" placeholder="-1.123456"></div>
+            </div>
+            <div class="field"><label for="customLocationFrequency">Frequency</label><input id="customLocationFrequency" maxlength="20" placeholder="e.g. 123.450"></div>
+            <div class="field"><label for="customLocationNotes">Notes</label><textarea id="customLocationNotes" rows="4" placeholder="Operational notes, reporting instructions, landmarks…"></textarea></div>
+            <div class="custom-location-actions">
+              <button class="btn primary" id="customLocationNewBtn" type="button">+ Add New</button>
+              <button class="btn" id="customLocationPickBtn" type="button">Place Pin on Map</button>
+              <button class="btn" id="customLocationVisibilityBtn" type="button">Show All</button>
+              <button class="btn primary" id="customLocationSaveBtn" type="button">Save</button>
+              <button class="btn" id="customLocationEditBtn" type="button">Edit</button>
+              <button class="btn danger" id="customLocationDeleteBtn" type="button">Delete</button>
+            </div>
+            <p class="hint" id="customLocationStatus">Saved custom locations remain available on this device until deleted. Only checked locations are shown on the map; all checks reset at 0000 UTC.</p>
+          </div>
+
+          <div class="range-bearing-card">
+            <div class="field"><label><input type="checkbox" id="rbToggle" style="width:auto;margin-right:6px;">Range and Bearing</label></div>
+            <div id="rbControls" style="display:none;">
+              <div class="rb-readout">
+                <div class="rb-readout-row rb-input-row"><label class="lbl" for="rbStartLabel">Start</label><input class="val rb-end-input" id="rbStartLabel" placeholder="Waypoint / aircraft / coordinate"></div>
+                <div class="rb-readout-row rb-input-row"><label class="lbl" for="rbEndLabel">End</label><input class="val rb-end-input" id="rbEndLabel" placeholder="Waypoint / aircraft / coordinate"></div>
+                <div class="rb-readout-row big"><span class="lbl">Range</span><span class="val" id="rbRange">&ndash;</span></div>
+                <div class="rb-readout-row big"><span class="lbl">Bearing</span><span class="val" id="rbBearing">&ndash;</span></div>
+              </div>
+              <div class="btn-row rb-compact-buttons">
+                <button class="btn" id="rbUpdateBtn" type="button">Update</button>
+                <button class="btn" id="rbStartHookBtn" type="button">Hook Start</button>
+                <button class="btn" id="rbEndHookBtn" type="button">Hook End</button>
+                <button class="btn" id="rbResetBtn" type="button">Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHART TAB -->
+      <div class="tabpanel hidden" id="tab-chart">
+        <h2 class="section-title">eVFR 500K Southern England</h2>
+        <p class="hint" id="chartSouthStatus">No chart loaded yet.</p>
+
+        <h2 class="section-title">eVFR 500K Northern England</h2>
+        <p class="hint" id="chartNorthStatus">Not loaded. Upload a Northern England eVFR GeoTIFF below.</p>
+
+        <h2 class="section-title">Load / update chart</h2>
+        <p class="hint">Select your <code>eVFR_500K_..._GEO.tif</code> file. Everything happens in your browser — nothing is uploaded anywhere. Once processed, the chart tiles are stored locally and will be available next time.</p>
+        <div class="field"><label for="chartSlot">Chart region</label>
+          <select id="chartSlot">
+            <option value="south">Southern England</option>
+            <option value="north">Northern England</option>
+          </select>
+        </div>
+        <div class="field"><label for="chartTifFile">eVFR GeoTIFF (.tif)</label><input type="file" id="chartTifFile" accept=".tif,.tiff,image/tiff"></div>
+        <div class="btn-row">
+          <button class="btn primary" id="chartTifProcess" type="button">Load Chart</button>
+        </div>
+        <p class="hint" id="chartProcessStatus"></p>
+
+        <h2 class="section-title">Chart opacity</h2>
+        <div class="field"><input type="range" id="chartOpacity" min="0.3" max="1" step="0.05" value="1"></div>
+      </div>
+
+      <!-- LOCATIONS TAB -->
+      <div class="tabpanel hidden" id="tab-hazards">
+        <h2 class="section-title">Add a hazard</h2>
+        <div class="haz-mode-row">
+          <span class="mode-lbl active" id="hazModeSingleLbl">SINGLE&nbsp;POINT<br>NOTAM</span>
+          <button type="button" class="haz-switch" id="hazModeToggle" aria-pressed="false" title="Switch between single-point and multi-point NOTAM plotting"></button>
+          <span class="mode-lbl" id="hazModeMultiLbl">MULTI&nbsp;POINT<br>NOTAM</span>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="hazType">Activity</label>
+            <select id="hazType">
+              <option value="gliding">Gliding (green pin)</option>
+              <option value="parachute">Parachuting (blue pin)</option>
+              <option value="display">Display (yellow pin)</option>
+              <option value="misc">Misc (black pin)</option>
+              <option value="bbmf">BBMF (Red pin)</option>
+              <option value="airex">AIR EX (Red pin)</option>
+              <option value="redarrows">Red Arrows transits (Red pin)</option>
+              <option value="tda">TDA (Red round pin)</option>
+              <option value="rat">RA(T) (Red round pin)</option>
+              <option value="sarops">SAR OPS (Red round pin)</option>
+
+            </select>
+          </div>
+          <div class="field"><label for="hazRef">Pin # (auto by activity)</label><input type="number" id="hazRef" min="1" max="99" readonly title="Automatically allocated from the selected activity type"></div>
+        </div>
+        <div class="field"><label for="hazCoord">PIB coordinate shortcut (optional)</label><input type="text" id="hazCoord" placeholder="e.g. 5302N00030W"></div>
+        <div class="row2" id="hazSingleLatLonRow">
+          <div class="field"><label for="hazLat">Latitude</label><input type="text" id="hazLat" placeholder="e.g. N52°38'25&quot;"></div>
+          <div class="field"><label for="hazLon">Longitude</label><div class="hemi-wrap"><button type="button" id="hazLonHemi" class="hemi-btn" data-hemi="W">W</button><input type="text" id="hazLon" placeholder="001°44'12&quot;" style="flex:1;min-width:0;"></div></div>
+        </div>
+        <div id="hazMultiWrap" style="display:none;">
+          <div class="haz-pt-row haz-pt-head">
+            <span class="idx">#</span><span>LAT</span><span>LON</span><span>PLOT</span>
+          </div>
+          <div id="hazPointsRows"></div>
+          <p class="hint">Multi-point NOTAMs auto-fill from the pasted or selected NOTAM. The points are plotted as one area (polygon) with a single numbered pin at its centre; untick PLOT to leave a point out.</p>
+          <p class="hint haz-multi-trigger-note"><strong>HAZARD TRIGGER:</strong> Multi-point hazards generate a HAZPLOT alert only when an aircraft is within <strong>1 NM of the polygon boundary</strong> and within the configured vertical limits.</p>
+        </div>
+        <p class="hint" id="hazDmsHint" style="display:none;color:var(--cyan);font-family:var(--mono);font-size:10.5px;"></p>
+        <div class="btn-row haz-pick-row">
+          <button class="btn" id="hazPick" type="button">Pick on map&hellip;</button>
+          <div class="field haz-radius-field" id="hazRadiusWrap" style="display:none;min-width:150px;margin:0;">
+            <label for="hazRadiusNm">Radius</label>
+            <select id="hazRadiusNm">
+              <option value="2.5" selected>2.5 NM</option>
+              <option value="3">3 NM</option>
+              <option value="3.5">3.5 NM</option>
+              <option value="4">4 NM</option>
+              <option value="4.5">4.5 NM</option>
+              <option value="5">5 NM</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint" id="hazPickHint" style="display:none;color:var(--cyan);">Click anywhere on the map to set the coordinates above.</p>
+        <div class="row2">
+          <div class="field"><label for="hazLower">Lower limit</label><input type="text" id="hazLower" placeholder="e.g. SFC"></div>
+          <div class="field"><label for="hazUpper">Upper limit</label><input type="text" id="hazUpper" placeholder="e.g. FL065"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="hazStart">Start (UTC)</label><input type="time" id="hazStart"></div>
+          <div class="field"><label for="hazFinish">Finish (UTC)</label><input type="time" id="hazFinish"></div>
+        </div>
+        <p class="hint">Start and Finish are optional. Leave both blank to keep the hazard active until it is edited or deleted. When used, NOTAM times are UTC/Zulu.</p>
+        <div class="field"><label for="hazNotamCode">NOTAM code or keyword</label><input type="text" id="hazNotamCode" list="hazNotamCodeList" placeholder="e.g. C2473/26 or runway, gliding&hellip;" autocomplete="off"><datalist id="hazNotamCodeList"></datalist><p class="hint" id="hazNotamCodeStatus"></p></div>
+        <div class="field"><label for="hazNotam">NOTAM text</label><textarea id="hazNotam" rows="5" placeholder="Paste the full NOTAM text here&hellip;"></textarea></div>
+        <button class="btn primary full" id="hazAdd" disabled type="button">Add hazard</button>
+        <p class="hint">With times entered, the pin appears 30 minutes before Start, flashes until Start, remains steady until Finish, then hides. Without times it remains active until edited or deleted.</p>
+
+        <h2 class="section-title">Plotted hazards (<span id="hazCount">0</span>)</h2>
+        <div class="btn-row">
+          <button class="btn" id="hazExport" type="button">Export JSON</button>
+          <button class="btn" id="hazImportBtn" type="button">Import JSON</button>
+          <input type="file" id="hazImportFile" accept="application/json" style="display:none;">
+        </div>
+        <div id="hazList" style="margin-top:10px;"></div>
+      </div>
+
+
+      <!-- FLIGHT ROUTES TAB -->
+      <div class="tabpanel hidden" id="tab-routes">
+        <div class="route-planner">
+          <div class="route-toolbar">
+            <div class="field"><label for="routeLibrarySearch">Saved routes</label><input id="routeLibrarySearch" list="routeLibraryList" placeholder="Search saved routes…"><datalist id="routeLibraryList"></datalist></div>
+            <div class="btn-row"><button class="btn" id="routeNewBtn" type="button">New Route</button><button class="btn" id="routeLoadBtn" type="button">Load</button></div>
+          </div>
+          <div class="row2"><div class="field"><label for="routeName">Route name</label><input id="routeName" placeholder="e.g. Bournemouth to Gloucester"></div><div class="field"><label for="routeFlight">Assigned flight</label><input id="routeFlight" placeholder="Callsign"></div></div>
+          <div id="routePoints"></div>
+          <div class="btn-row"><button class="btn" id="routeAddPoint" type="button">+ Add Point</button><button class="btn primary" id="routeSaveBtn" type="button">Save Route</button><button class="btn danger" id="routeDeleteBtn" type="button">Delete Route</button></div>
+          <p class="hint" id="routeStatus">Add at least two points. Use a latitude/longitude, airfield, IFR waypoint, reporting point, VRP or saved Custom Location.</p>
+        </div>
+      </div>
+
+      <!-- NOTAM TAB -->
+      <div class="tabpanel hidden" id="tab-notams">
+        <h2 class="section-title">Upload PIB.pdf</h2>
+        <div class="field"><label for="pibFile">NOTAM PIB (PDF)</label><input type="file" id="pibFile" accept="application/pdf" style="display:none;"><div class="btn-row" style="align-items:center;gap:10px;margin-top:4px;"><label for="pibFile" class="btn" id="pibChooseBtn" style="display:inline-flex;align-items:center;justify-content:center;margin:0;">Choose File</label></div></div>
+        <div class="active-pib-card" id="activePibCard"><p class="hint" id="pibSummary">ACTIVE PIB: none loaded</p></div>
+        <p class="hint" id="pibStatus">Upload today's text-based NATS AIS PIB PDF. The latest successful upload becomes the single ACTIVE PIB for all NOTAM code, keyword and Danger Area searches.</p>
+
+        <div id="natsLivePibPanel" style="margin-top:10px;border:1px solid #1f6f54;border-radius:8px;background:#0b1c1a;padding:10px 12px;color:#cfe8df;font-size:12px;line-height:1.55;">
+          <div id="natsLiveTitle" style="font-weight:800;color:#45e59a;letter-spacing:.04em;margin-bottom:4px;">NATS LIVE PIB <span id="natsLiveDot">🟢</span></div>
+          <div>Last server check: <strong id="natsLastChecked">—</strong></div>
+          <div>PIB issued: <strong id="natsPibIssued">—</strong></div>
+          <div>PIB valid to: <strong id="natsPibValidTo">—</strong></div>
+          <div>NATS PIB updated: <strong id="natsPibUpdated">—</strong></div>
+          <div>NOTAMs: <strong id="natsNotamCount">—</strong></div>
+          <div>Next check: <strong id="natsNextCheck">—</strong></div>
+          <div>AUTO PLOT: <strong id="natsAutoPlotState">Waiting</strong></div>
+          <div id="natsChangeRow" style="display:none;margin-top:5px;"><a id="natsChangesLink" href="changed-notams.html" target="_blank" rel="noopener" style="color:#5fd4ff;font-weight:700;text-decoration:underline;">View changed NOTAMs</a> <span id="natsChangeSummary"></span></div>
+        </div>
+
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn primary" id="notamParse" type="button">Initiate AUTO PLOT</button>
+          <button class="btn" id="openAutoPlotPib" type="button">Open AutoPlot PIB</button>
+          <button class="btn danger" id="notamClear" type="button">Remove all AUTO plots</button>
+        </div>
+
+        <div id="autoPlotRemoveModal" class="hidden" style="position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.68);display:none;align-items:center;justify-content:center;padding:18px;">
+          <div style="width:min(460px,96vw);background:#0e1c28;border:1px solid #a33b3b;border-radius:12px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.45);">
+            <h3 style="margin:0 0 10px;color:#ff7777;">Remove all AUTO plots?</h3>
+            <p style="margin:0;color:#c7d5df;line-height:1.45;">This will remove every AUTO PIB plot from FISOFID. Manually plotted hazards will not be removed.</p>
+            <div class="btn-row" style="justify-content:flex-end;margin-top:18px;">
+              <button class="btn" id="autoPlotRemoveCancel" type="button">Cancel</button>
+              <button class="btn danger" id="autoPlotRemoveProceed" type="button">Proceed</button>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="section-title">Plotted (<span id="notamPlottedCount">0</span>)</h2>
+        <div id="notamPlottedList"><p class="empty-note">None yet.</p></div>
+
+        <h2 class="section-title">HAZPLOT</h2>
+        <div class="hazdam-panel" id="hazplotPanel">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:#5fd4ff;font-size:12px;font-weight:700;letter-spacing:.05em;">HAZPLOT <span style="color:#d7e5ee;font-weight:500;">— USER PREFERENCES</span></span>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="hazplotEnabled" checked> Enabled
+            </label>
+          </div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+            <label style="font-size:11px;color:#7fa8b8;display:flex;align-items:center;gap:5px;">
+              <span style="color:#ff8800;">?</span> Lateral limits
+              <select id="hazplotLateralNm" style="width:82px;background:#0f1e2d;border:1px solid #1e3a50;color:#c8d8e4;padding:3px 4px;border-radius:3px;font-size:11px;">
+                <option value="0">0 NM</option>
+                <option value="1">1 NM</option>
+                <option value="2">2 NM</option>
+                <option value="5" selected>5 NM</option>
+                <option value="10">10 NM</option>
+              </select>
+            </label>
+            <label style="font-size:11px;color:#7fa8b8;display:flex;align-items:center;gap:5px;">
+              <span style="color:#ff2200;">?</span> Vertical limits
+              <select id="hazplotVerticalFt" style="width:90px;background:#0f1e2d;border:1px solid #1e3a50;color:#c8d8e4;padding:3px 4px;border-radius:3px;font-size:11px;">
+                <option value="0">0 ft</option>
+                <option value="500" selected>500 ft</option>
+                <option value="1000">1000 ft</option>
+                <option value="2000">2000 ft</option>
+                <option value="5000">5000 ft</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint" id="hazplotStatus" style="margin-top:8px;">HAZPLOT triggers HAZBUF using lateral buffer plus vertical buffer around each plotted NOTAM lower/upper limit.</p>
+          <p class="hint" id="autoPibHazStatus" style="margin-top:8px;color:var(--green);">LIVE AUTO PIB: NATS PIB.xml is checked automatically every 15 minutes. Manual PIB upload / Initiate AUTO PLOT remain as fallback.</p>
+        </div>
+      </div>
+
+      <!-- DOWNLOADS TAB -->
+      <div class="tabpanel hidden" id="tab-airfields">
+        <h2 class="section-title">Downloads</h2>
+        <p class="hint">Upload replacement CSV/Excel files or download the current FFApp datasets. Use the listed column names as headers.</p>
+
+        <div class="btn-row" style="position:sticky;top:0;z-index:20;background:#0b1722;padding:8px 0 12px;margin-bottom:4px;">
+          <button class="btn primary" type="button" data-download-jump="airfieldManagement">Airfields</button>
+          <button class="btn primary" type="button" data-download-jump="parachuteManagement">Parachuting</button>
+          <button class="btn primary" type="button" data-download-jump="dangerManagement">Danger Areas</button>
+        </div>
+
+        <div class="hazdam-panel" id="airfieldManagement">
+          <h3>Airfield information</h3>
+          <p class="hint">Unlock INFO with your administrator PIN, then Save airfield details to save permanent, shared changes. You can also edit from an airfield map popup. CSV tools manage this device’s local list; use Save airfield details to publish an individual edit.</p>
+          <div class="row2">
+            <div class="field"><label>Airfield name</label><input id="airfieldEditName" type="text"></div>
+            <div class="field"><label>ICAO</label><input id="airfieldEditIcao" type="text" maxlength="8"></div>
+            <div class="field"><label>Frequency</label><input id="airfieldEditFrequency" type="text"></div>
+            <div class="field"><label>Telephone No</label><input id="airfieldEditTelephone" type="text"></div>
+            <div class="field"><label>Latitude</label><input id="airfieldEditLatitude" type="number" step="any"></div>
+            <div class="field"><label>Longitude</label><input id="airfieldEditLongitude" type="number" step="any"></div>
+            <div class="field"><label>Runways</label><input id="airfieldEditRunways" type="text"></div>
+            <div class="field"><label>Notes</label><input id="airfieldEditNotes" type="text"></div>
+          </div>
+          <div class="btn-row"><button class="btn primary" id="airfieldSubmitDetails" type="button">Save airfield details</button><button class="btn" id="airfieldPickNew" type="button">Pick position on map</button><button class="btn" id="airfieldResetDetails" type="button">Clear form</button><button class="btn" id="airfieldSortIcao" type="button">Sort A–Z by ICAO</button></div>
+          <p class="hint" id="airfieldEditStatus"></p>
+          <div class="field"><label for="airfieldFile">Upload replacement Airfield Information CSV/Excel</label><input type="file" id="airfieldFile" accept=".csv,.xlsx,.xls"></div>
+          <div class="btn-row">
+            <button class="btn" id="airfieldExport" type="button">Download Airfield Information (.csv)</button>
+            <button class="btn danger" id="airfieldClear" type="button">Clear airfields</button>
+          </div>
+          <p class="hint" id="airfieldStatus"></p>
+          <h3>Loaded airfields (<span id="airfieldCount">0</span>)</h3>
+          <div id="airfieldList"><p class="empty-note">None loaded yet &mdash; upload a spreadsheet above. Markers appear on the map and are clickable once loaded.</p></div>
+        </div>
+
+        <div class="hazdam-panel" id="parachuteManagement">
+          <h3>Parachute sites</h3>
+          <p class="hint">Submit one site below, or download the CSV to add, edit or remove multiple sites and upload it as the replacement list. Updates are also shown under NOTAM Plotting &gt; PARA SITES.</p>
+          <div class="row2">
+            <div class="field"><label>Airfield / site name</label><input id="paraEditName" type="text"></div>
+            <div class="field"><label>ICAO / site code</label><input id="paraEditIcao" type="text" maxlength="12"></div>
+            <div class="field"><label>Frequency</label><input id="paraEditFrequency" type="text"></div>
+            <div class="field"><label>Telephone No</label><input id="paraEditTelephone" type="text"></div>
+            <div class="field"><label>Latitude</label><input id="paraEditLatitude" type="number" step="any"></div>
+            <div class="field"><label>Longitude</label><input id="paraEditLongitude" type="number" step="any"></div>
+            <div class="field"><label>Runways</label><input id="paraEditRunways" type="text"></div>
+            <div class="field"><label>Notes</label><input id="paraEditNotes" type="text"></div>
+          </div>
+          <div class="btn-row"><button class="btn primary" id="paraSubmitDetails" type="button">Save parachute details</button><button class="btn" id="paraPickNew" type="button">Pick position on map</button><button class="btn" id="paraResetDetails" type="button">Clear form</button><button class="btn" id="paraSortIcao" type="button">Sort A–Z by ICAO</button></div>
+          <p class="hint" id="paraEditStatus"></p>
+          <div class="field"><label for="paraDownloadFile">Upload replacement Parachute Sites CSV/Excel</label><input type="file" id="paraDownloadFile" accept=".csv,.xlsx,.xls"></div>
+          <div class="btn-row">
+            <button class="btn" id="paraDownloadExport" type="button">Download Parachute Sites</button>
+          </div>
+          <p class="hint" id="paraDownloadStatus"></p>
+          <h3>Loaded parachute sites (<span id="paraDownloadCount">0</span>)</h3>
+          <div id="paraDownloadList"><p class="empty-note">No parachute sites loaded.</p></div>
+        </div>
+
+        <div class="hazdam-panel" id="dangerManagement">
+          <h3>Danger areas</h3>
+          <p class="hint">Columns: <code>Name</code>, <code>Lat</code>, <code>Lon</code>, <code>Lower level</code>, <code>Upper level</code>. For polygon areas, repeat the same <code>Name</code> on multiple rows with each LAT/LON vertex.</p>
+          <div class="field"><label for="dangerDownloadFile">Upload Danger Areas CSV/Excel</label><input type="file" id="dangerDownloadFile" accept=".csv,.xlsx,.xls"></div>
+          <div class="btn-row">
+            <button class="btn" id="dangerDownloadExport" type="button">Download Danger Areas</button>
+          </div>
+          <p class="hint" id="dangerDownloadStatus"></p>
+        </div>
+
+        <div class="hazdam-panel enr51-master-panel">
+          <h3>ENR 5.1 Master Library — Prohibited, Restricted and Danger Areas</h3>
+          <p class="hint">Upload the latest ENR 5.1 PDF or copied text each AIRAC. FFApp parses EG D / EG R / EG P areas and stores them as a reference library. No areas are drawn from this upload until you insert a specific danger area below.</p>
+          <p class="hint" id="enr51CurrentVersion">Current ENR 5.1 library: none loaded.</p>
+          <div class="field"><label for="enr51File">Upload ENR 5.1 PDF/Text</label><input type="file" id="enr51File" accept=".pdf,.txt,.text"></div>
+          <div class="btn-row">
+            <button class="btn" id="enr51Preview" type="button">Parse ENR 5.1</button>
+            <button class="btn primary" id="enr51Install" type="button">Save Uploaded ENR Library</button>
+            <button class="btn" id="enr51Export" type="button">Download ENR 5.1 Library</button>
+            <button class="btn danger" id="enr51Clear" type="button">Clear ENR 5.1 Library</button>
+          </div>
+          <div class="row2" style="margin-top:10px;">
+            <div class="field">
+              <label for="enr51InsertAreaSearch">Insert Danger Area from uploaded ENR</label>
+              <input id="enr51InsertAreaSearch" list="enr51InsertAreaList" type="text" placeholder="e.g. D406A, ESKMEALS, D011B">
+              <datalist id="enr51InsertAreaList"></datalist>
+            </div>
+            <div class="field">
+              <label>Action</label>
+              <button class="btn primary" id="enr51InsertAreaBtn" type="button">Insert Danger Area from uploaded ENR</button>
+            </div>
+          </div>
+          <p class="hint" id="enr51InsertAreaStatus">Search the uploaded ENR library, then insert only that danger area into NOTAM Plotting > Danger Areas so a PIB NOTAM can be applied to it.</p>
+          <p class="hint" id="enr51Status">No ENR 5.1 file loaded this session.</p>
+          <div class="haz-import-preview" id="enr51ImportLog"></div>
+        </div>
+      </div>
+
+      <div class="tabpanel hidden" id="tab-airfield-met">
+        <h2 class="section-title">Para Sites</h2>
+        <div style="background:#050d15;border:1px solid #1e3a50;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:#5fd4ff;font-size:12px;font-weight:700;letter-spacing:.05em;">HAZPARA</span>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="hazparaEnabled" checked> Enabled
+            </label>
+          </div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;">
+            <label style="font-size:11px;color:#7fa8b8;display:flex;align-items:center;gap:5px;">
+              <span style="color:#ff8800;">?</span> Orange dist (NM)
+              <input type="number" id="hazparaAmberNm" value="5" min="1" max="50" step="1" style="width:44px;background:#0f1e2d;border:1px solid #1e3a50;color:#c8d8e4;padding:2px 4px;border-radius:3px;font-size:11px;">
+            </label>
+            <label style="font-size:11px;color:#7fa8b8;display:flex;align-items:center;gap:5px;">
+              <span style="color:#ff2200;">?</span> Red dist (NM)
+              <input type="number" id="hazparaRedNm" value="3" min="1" max="20" step="1" style="width:44px;background:#0f1e2d;border:1px solid #1e3a50;color:#c8d8e4;padding:2px 4px;border-radius:3px;font-size:11px;">
+            </label>
+          </div>
+        </div>
+        <div class="btn-row" style="margin:10px 0 12px;">
+          <button class="btn danger" id="paraResetAll" type="button">Reset all parachute sites</button>
+        </div>
+        <div id="paraResetAllModal" class="hidden" style="position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.68);display:none;align-items:center;justify-content:center;padding:18px;">
+          <div style="width:min(500px,96vw);background:#0e1c28;border:1px solid #a33b3b;border-radius:12px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.45);">
+            <h3 style="margin:0 0 10px;color:#ff7777;">Reset all parachute sites?</h3>
+            <p style="margin:0;color:#c7d5df;line-height:1.45;">This will set every parachute site Start and Finish time to 00:00 and return every site to AUTO. This change is shared with connected FISOFID devices.</p>
+            <div class="btn-row" style="justify-content:flex-end;margin-top:18px;">
+              <button class="btn" id="paraResetAllCancel" type="button">Cancel</button>
+              <button class="btn danger" id="paraResetAllProceed" type="button">Proceed</button>
+            </div>
+          </div>
+        </div>
+        <p class="hint">Sites are listed alphabetically. Set active times for each site. A flashing blue circle appears 30 min before start, goes solid at start. When an AUTO site's Finish time passes, Start and Finish reset to 00:00 automatically.</p>
+        <div id="paraSiteList"></div>
+      </div>
+
+      <!-- NOTIFICATIONS TAB — Release 282 -->
+      <div class="tabpanel hidden" id="tab-notifications">
+        <h2 class="section-title">Notifications</h2>
+        <div class="notify-panel">
+          <h3>Device notifications — SUSPENDED</h3>
+          <p class="hint">Enable push notifications on this device, then choose which FISO FID occurrences should notify you. On supported mobile devices, install FISO FID to the Home Screen where required before enabling notifications.</p>
+          <div class="notify-actions">
+            <button class="btn primary" id="pushEnableBtn" type="button">Enable notifications on this device</button>
+            <button class="btn" id="pushDisableBtn" type="button">Disable on this device</button>
+            <button class="btn" id="pushTestBtn" type="button" disabled>SEND TEST NOTIFICATION</button>
+            <button class="btn" id="pushSimTestBtn" type="button" disabled>TEST SIM CALLSIGN</button>
+            <button class="btn" id="pushHazplotTestBtn" type="button" disabled>TEST HAZPLOT</button>
+            <span id="pushStatus" class="push-status">Not configured</span>
+          </div>
+        </div>
+        <div class="notify-panel">
+          <h3>Alert types</h3>
+          <div class="notify-grid">
+            <label><input type="checkbox" class="notify-pref" data-notify-type="HAZPLOT" checked> <span><b>HAZPLOT</b><small>Aircraft / plotted hazard occurrence</small></span></label>
+            <label><input type="checkbox" class="notify-pref" data-notify-type="HAZDAM" checked> <span><b>HAZDAM</b><small>Danger Area hazard occurrence</small></span></label>
+            <label><input type="checkbox" class="notify-pref" data-notify-type="SIMILAR" checked> <span><b>SIM CALLSIGN</b><small>New similar callsign pair</small></span></label>
+            <label><input type="checkbox" class="notify-pref" data-notify-type="SQ0027" checked> <span><b>0027</b><small>Aircraft first detected squawking 0027</small></span></label>
+            <label><input type="checkbox" class="notify-pref" data-notify-type="SQ0030" checked> <span><b>0030</b><small>Aircraft first detected squawking 0030</small></span></label>
+            <label><input type="checkbox" class="notify-pref" data-notify-type="SQ7700" checked> <span><b>7700</b><small>Emergency squawk 7700</small></span></label>
+            <label><input type="checkbox" class="notify-pref" data-notify-type="PCH" checked> <span><b>PCH</b><small>Aircraft-to-aircraft proximity hazard</small></span></label>
+          </div>
+          <div class="notify-pch-note">PCH notifications will use the same live PCH limits as FISO FID so the device alert matches what appears on the map.</div>
+          <p id="notifyPrefsStatus" class="hint">Preferences are saved to the registered device token.</p>
+        </div>
+        <div class="notify-panel">
+          <h3>Build status</h3>
+          <p class="hint"><b>Release 322:</b> Device push notifications are suspended. No Firebase Messaging token restoration or push registration runs during startup.</p>
+        </div>
+      </div>
+
+      <!-- DANGER AREAS TAB -->
+      <div class="tabpanel hidden" id="tab-danger">
+        <h2 class="section-title">HAZDAM — Danger Areas</h2>
+        <div class="hazdam-panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:#5fd4ff;font-size:12px;font-weight:700;letter-spacing:.05em;">HAZDAM <span style="color:#d7e5ee;font-weight:500;">— USER PREFERENCES</span></span>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="hazdamEnabled" checked> Enabled
+            </label>
+          </div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
+            <label style="font-size:11px;color:#7fa8b8;display:flex;align-items:center;gap:5px;">
+              <span style="color:#ff8800;">?</span> Lateral limits
+              <select id="hazdamLateralNm" style="width:82px;background:#0f1e2d;border:1px solid #1e3a50;color:#c8d8e4;padding:3px 4px;border-radius:3px;font-size:11px;">
+                <option value="0">0 NM</option>
+                <option value="1">1 NM</option>
+                <option value="2" selected>2 NM</option>
+                <option value="5">5 NM</option>
+                <option value="10">10 NM</option>
+              </select>
+            </label>
+            <label style="font-size:11px;color:#7fa8b8;display:flex;align-items:center;gap:5px;">
+              <span style="color:#ff2200;">?</span> Vertical limits
+              <select id="hazdamVerticalFt" style="width:90px;background:#0f1e2d;border:1px solid #1e3a50;color:#c8d8e4;padding:3px 4px;border-radius:3px;font-size:11px;">
+                <option value="0">0 ft</option>
+                <option value="500" selected>500 ft</option>
+                <option value="1000">1000 ft</option>
+                <option value="2000">2000 ft</option>
+                <option value="5000">5000 ft</option>
+              </select>
+            </label>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <button class="btn danger" id="hazdamClearAllBtn" type="button">Clear all (except checked) Danger Areas</button>
+            <span class="hint">Clears operational state/times only. Permanent Danger Area geometry is retained.</span>
+          </div>
+        </div>
+        <div id="hazdamClearAllModal" class="hidden" style="position:fixed;inset:0;z-index:10060;background:rgba(0,0,0,.68);display:none;align-items:center;justify-content:center;padding:18px;">
+          <div style="width:min(520px,96vw);background:#0e1c28;border:1px solid #a33b3b;border-radius:12px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.45);">
+            <h3 style="margin:0 0 10px;color:#ff7777;">Clear Danger Areas?</h3>
+            <p style="margin:0;color:#c7d5df;line-height:1.45;">This will set every unprotected Danger Area to INACTIVE and reset Start/End to 00:00. Areas with the Keep checkbox selected will not be changed. Permanent Danger Area definitions and geometry will not be deleted.</p>
+            <div class="btn-row" style="justify-content:flex-end;margin-top:18px;">
+              <button class="btn" id="hazdamClearAllCancel" type="button">Cancel</button>
+              <button class="btn danger" id="hazdamClearAllProceed" type="button">Proceed</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hazdam-panel">
+          <div class="field">
+            <label><input type="checkbox" id="hazdamToggle" checked style="width:auto;margin-right:6px;">Show DANGER AREAS</label>
+          </div>
+        </div>
+
+        <div class="hazdam-panel" id="hazdamNotamSearchPanel">
+          <h3>DA NOTAM code / Keyword</h3>
+          <div class="row2">
+            <div class="field">
+              <label for="hazdamNotamSearch">NOTAM code / keyword</label>
+              <input id="hazdamNotamSearch" list="hazdamNotamSearchList" type="text" placeholder="e.g. H2418/26, D201H, Aberporth">
+              <datalist id="hazdamNotamSearchList"></datalist>
+            </div>
+            <div class="field">
+              <label>Action</label>
+              <button class="btn primary" type="button" id="hazdamInsertNotamBtn">Insert NOTAM Danger Area</button>
+            </div>
+          </div>
+          <p class="hint" id="hazdamNotamSearchStatus">Search the current uploaded PIB for a NOTAM code or keyword, then insert its times and levels into the matching programmed danger area.</p>
+        </div>
+
+        <div class="hazdam-panel">
+          <h3>Current Conflicts</h3>
+          <div id="hazdamConflictList"><p class="empty-note">No HAZDAM conflicts detected.</p></div>
+        </div>
+
+        <div class="hazdam-panel">
+          <h3>Danger Areas — Direct Edit</h3><p class="hint">Admin: press EDIT on an area, change its state/feed/times/levels, then SAVE. AUTO is reserved for the FISFID ENR DA feed.</p>
+          <div id="hazdamStatusList"><p class="empty-note">HAZDAM loading…</p></div>
+        </div>
+        <hr style="border:none;border-top:1px solid #1e3a50;margin:12px 0;">
+
+    </aside>
+  <div id="pchAlertBox" style="display:none;"></div>
+  <div id="hazBufAlertBox" style="display:none;"></div>
+  </main>
+
+  <aside id="fisoMapTimeWarning" class="fiso-map-time-warning" aria-label="Non-live map time warning" hidden><strong>WARNING — MAP TIME IS NOT LIVE. DISPLAYED INFORMATION RELATES TO THE SELECTED UTC TIME.</strong><span id="fisoMapTimeReturnCountdown"></span><span id="fisoMapTimeSelectedUTC"></span></aside>
+  <aside id="fisoPermanentWarning" class="fiso-permanent-warning" aria-label="Information warning">WARNING! THIS INFORMATION IS FOR GUIDANCE ONLY AND IS UNVERIFIED. CHECK AGAINST APPROPRIATE ASSURED, VERIFIED INFORMATION. FISOFID.ONLINE TAKES NO RESPONSIBILITY FOR INCORRECT INFORMATION DISPLAYED.</aside>
+
+  <footer>
+    <span id="footLeft">Home: &ndash;</span>
+    <span id="footRight">FISO FID APP &middot; data is for situational reference only, not for navigation or separation</span>
+  </footer>
+  <nav id="mobileNav" role="navigation" aria-label="Mobile navigation">
+    <button class="mob-nav-btn active" id="mobBtnMap" type="button">
+      <span class="mob-icon">&#9685;</span>
+      <span>Map</span>
+    </button>
+    <button class="mob-nav-btn" id="mobBtnStrips" type="button">
+      <span class="mob-icon">&#8801;</span>
+      <span>Strips <span id="mobStripsCount"></span></span>
+    </button>
+    <button class="mob-nav-btn" id="mobBtnPanel" type="button">
+      <span class="mob-icon">&#9776;</span>
+      <span>Panel</span>
+    </button>
+  </nav>
+
+</div>
+
+<style id="dev459InfoStyles">
+#side[data-info-pin-locked]{display:none!important;visibility:hidden!important;pointer-events:none!important}
+#infoPinDialog{color:#e7edf2;background:#17212b;border:1px solid #5b7184;border-radius:8px;width:min(340px,calc(100vw - 36px));padding:20px;box-sizing:border-box;z-index:100000}
+#infoPinDialog::backdrop{background:#0008}#infoPinDialog input{display:block;box-sizing:border-box;width:100%;margin:8px 0 14px;padding:9px;background:#0c151e;color:#fff;border:1px solid #7d90a0;border-radius:4px}
+#infoPinDialog button{padding:8px 12px;margin:4px 6px 4px 0;cursor:pointer}#infoPinDialog .pin-link{border:0;background:none;color:#b8d8f1;text-decoration:underline;padding:6px 0}#infoPinMessage{font-size:13px;line-height:1.4;min-height:1.4em}
+</style>

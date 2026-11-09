@@ -1,0 +1,18 @@
+FISO FID DEV405 TEST REPORT
+===========================
+Changes:
+- Leaflet minimum zoom set to 6, preventing a wider zoom-out than the requested UK overview.
+- UK FIR Waypoints selected by default on first load.
+- Waypoint triangles and names are now one visibility unit controlled by the Waypoints checkbox.
+- Waypoints and names are hidden below zoom 8 and automatically appear at zoom 8+.
+- Waypoint triangles/labels changed to a softer grey-black and reduced visual weight.
+- Legacy independent Waypoint Names setting removed from the visible settings panel.
+
+Static checks performed:
+- node --check app.js
+- node --check notamengine.js
+- node --check ffapp-auth.js
+- node --check Netlify JS functions
+- ZIP integrity test
+
+Note: final visual acceptance requires deployment to the Dev site because map tile rendering/viewport scale is browser-dependent.

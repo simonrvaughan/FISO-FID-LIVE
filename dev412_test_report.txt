@@ -1,0 +1,15 @@
+FISO FID DEV412 test report
+
+Changes:
+- Fixed Aircraft + TDB size slider by wiring the visible Leaflet Layers control when it is created.
+- Slider grades 1..9 map to CSS scales 0.60..1.40; default grade 5 = 1.00.
+- Rain radar uses RainViewer Weather Maps API public metadata endpoint and latest radar.past frame.
+- RainViewer tile maxNativeZoom corrected to 7 per current 2026 API documentation.
+- RainViewer attribution retained.
+
+Automated checks:
+- JavaScript syntax: see build verification.
+- Slider mapping unit assertions: grades 1,5,9 => 0.60,1.00,1.40.
+- Package integrity: see build verification.
+
+Live network rendering still depends on browser access to RainViewer and should be visually checked on Dev before production.

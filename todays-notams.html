@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Today’s NOTAMs — FISOFID</title>
+<link rel="stylesheet" href="todays-notams.css?v=472">
+<script defer src="notam-annotations.js?v=472"></script>
+<script defer src="todays-notams-page.js?v=472"></script>
+</head>
+<body>
+<main>
+<header><h1>Today’s NOTAMs</h1><button type="button" id="printReport" disabled>Print</button><button type="button" id="ackChanges" disabled>Acknowledge changes</button></header>
+<p id="saveStatus" role="status">Pin No and Page No save automatically against each NOTAM and are shared with other signed-in users.</p>
+<p id="liveStatus" role="status">Updates follow the app’s existing NOTAM feed; no additional feed polling.</p>
+<p id="reportMeta" role="status">Loading report…</p>
+<p id="warning" class="warning" hidden></p>
+<table id="notamTable" hidden>
+<colgroup><col class="pin"><col class="description"><col class="levels"><col class="times"><col class="page"></colgroup>
+<thead><tr><th>Pin No</th><th>Description</th><th>Levels</th><th>Times UTC</th><th>Page No</th></tr></thead>
+<tbody id="notamRows"></tbody>
+</table>
+<p id="empty" hidden>No qualifying NOTAMs are scheduled today in this PIB.</p>
+<section id="review" hidden aria-label="Manual intervention required"></section>
+<footer>Upper limit &gt; 1,000 ft; Q-line reference centre at or south of 56°N. EGD789 excluded. A = thousands of feet AMSL. FL = flight level. SR/SS = sunrise/sunset. Coordinates are Q-line reference centres, not full boundaries. Latest loaded PIB; not an archive of notices withdrawn earlier today. Check current official NOTAMs and supplements.</footer>
+</main>
+</body>
+</html>

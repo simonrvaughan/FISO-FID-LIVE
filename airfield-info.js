@@ -1,0 +1,40 @@
+/* DEV463: shared airfield edits; all writes require a server-validated INFO PIN grant. */
+(()=>{'use strict';
+ const API='/.netlify/functions/dev463-airfield-info',CACHE='fisofid_airfield_edits_v1';
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const keyFor=r=>r._infoKey||((r.icao||'').trim()?'icao:'+r.icao.trim().toUpperCase():'name:'+String(r.name||'').normalize('NFKD').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim()+'@'+Number(r.lat).toFixed(5)+','+Number(r.lon).toFixed(5));
+ let records=[],loadError=null,ready,busy=false,edition=0,scope='preview';
+ try{const cached=JSON.parse(localStorage.getItem(CACHE)||'[]');if(Array.isArray(cached))records=cached;}catch{}
+ let byKey=new Map(records.map(r=>[r.key,r]));
+ const find=r=>byKey.get(typeof r==='string'?r:keyFor(r));
+ function applyOne(r){const edit=find(r);return edit?.deleted?null:edit?{...r,...edit,tel:edit.phone,_infoKey:edit.key,_infoVersion:edit.version}:r;}
+ function apply(rows){const seen=new Set(),out=[];for(const row of rows){const key=keyFor(row);if(seen.has(key))continue;const edit=applyOne(row);seen.add(key);if(edit)out.push(edit);}for(const edit of records)if(!seen.has(edit.key)&&!edit.deleted)out.push({...edit,tel:edit.phone,_infoKey:edit.key,_infoVersion:edit.version});return out;}
+ const canEdit=()=>!!window.FISO_INFO_PIN?.canEdit();
+ function changed(){byKey=new Map(records.map(r=>[r.key,r]));edition++;window.dispatchEvent(new Event('ffapp-airfield-info-changed'));refreshButtons();}
+ async function load(){try{const r=await fetch(API,{cache:'no-store',signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('Saved airfield information is unavailable.');const data=await r.json();if(!data.ok||!Array.isArray(data.records))throw Error('Invalid airfield information response.');records=data.records;scope=data.scope;loadError=null;try{localStorage.setItem(CACHE,JSON.stringify(records));}catch{}changed();return data;}catch(e){loadError=e;throw e;}}
+ async function save(row,{key=keyFor(row),version=find(key)?.version||0}={}){
+  if(!canEdit())throw Error('Unlock INFO with your administrator PIN before editing airfields.');
+  await ready;if(loadError)throw loadError;
+  const record={key,name:row.name||'',icao:(row.icao||'').toUpperCase(),freq:row.freq||'',phone:typeof row.phone==='string'?row.phone:row.tel||'',lat:Number(row.lat),lon:Number(row.lon),runways:row.runways||'',notes:row.notes||''};
+  const result=await window.FISO_INFO_PIN.airfieldRequest({op:'save',record,expectedVersion:version});
+  records=records.filter(x=>x.key!==key).concat(result.record);try{localStorage.setItem(CACHE,JSON.stringify(records));}catch{}changed();return applyOne({...row,_infoKey:key});
+ }
+ async function remove(row){if(!canEdit())throw Error('Unlock INFO with your administrator PIN first.');await ready;const key=keyFor(row),result=await window.FISO_INFO_PIN.airfieldRequest({op:'delete',key,expectedVersion:find(key)?.version||0});records=records.filter(x=>x.key!==key).concat(result.record);try{localStorage.setItem(CACHE,JSON.stringify(records));}catch{}changed();}
+ function buttonHtml(row){return '<button type="button" class="btn" data-airfield-edit="'+encodeURIComponent(JSON.stringify(row))+'" '+(canEdit()?'':'disabled')+' title="Unlock INFO with the administrator PIN to edit">Edit airfield information</button>';}
+ function detailsHtml(row){const r=find(row);if(!r||r.deleted)return'';return '<section class="airfield-saved-info"><b>SAVED AIRFIELD INFORMATION</b>'+[['Frequency',r.freq],['Telephone',r.phone],['Runways',r.runways],['Notes',r.notes]].map(([k,v])=>'<div><strong>'+k+'</strong><span>'+esc(v||'—')+'</span></div>').join('')+'</section>';}
+ const modal=document.createElement('dialog');modal.id='airfieldInfoEditor';modal.setAttribute('aria-labelledby','airfieldInfoTitle');
+ modal.innerHTML='<form><h3 id="airfieldInfoTitle">Edit airfield information</h3><p data-scope>Saved permanently and shared across FISOFID devices.</p><div class="airfield-edit-grid">'+[['name','Airfield name','text'],['icao','ICAO / code','text'],['freq','Frequency','text'],['phone','Telephone','text'],['lat','Latitude','number'],['lon','Longitude','number'],['runways','Runways','text'],['notes','Notes','textarea']].map(([id,label,type])=>'<label>'+label+(type==='textarea'?'<textarea name="notes" maxlength="8000"></textarea>':'<input name="'+id+'" type="'+type+'" '+(type==='number'?'step="any" min="'+(id==='lat'?'-90':'-180')+'" max="'+(id==='lat'?'90':'180')+'"':'')+' '+(['name','lat','lon'].includes(id)?'required':'')+'>')+'</label>').join('')+'</div><p data-status role="status" aria-live="polite"></p><div class="btn-row"><button class="btn primary" type="submit">Save permanently</button><button class="btn" type="button" data-cancel>Close</button></div></form>';
+ document.body.append(modal);let editing=null,version=0;
+ function refreshButtons(){const allowed=canEdit();document.querySelectorAll('[data-airfield-edit],#airfieldInfoEditor [data-admin-locked]').forEach(b=>{if(allowed&&b.dataset.adminLocked==='true'){b.disabled=false;b.style.opacity='';delete b.dataset.adminLocked;}if(b.matches('[data-airfield-edit]'))b.disabled=!allowed;});modal.querySelector('[type=submit]').disabled=!allowed||busy;if(!allowed&&modal.open)modal.close();}
+ async function edit(row){if(!canEdit())return;try{await ready;editing=applyOne(row)||row;version=find(editing)?.version||0;for(const key of ['name','icao','freq','phone','lat','lon','runways','notes'])modal.querySelector('[name="'+key+'"]').value=editing[key]??(key==='phone'?editing.tel||'':'');modal.querySelector('[data-scope]').textContent=scope==='preview'?'DEV PREVIEW — edits are saved separately from live airfield information.':'Saved permanently and shared across FISOFID devices.';modal.querySelector('[data-status]').textContent='';modal.showModal();modal.querySelector('[name="name"]').focus();}catch(e){alert(e.message);}}
+ modal.querySelector('[data-cancel]').onclick=()=>modal.close();modal.addEventListener('cancel',e=>{if(busy)e.preventDefault()});
+ modal.querySelector('form').onsubmit=async e=>{e.preventDefault();if(busy||!editing)return;busy=true;const button=modal.querySelector('[type=submit]'),status=modal.querySelector('[data-status]');button.disabled=true;status.textContent='Saving…';const row={...editing};for(const key of ['name','icao','freq','phone','lat','lon','runways','notes'])row[key]=modal.querySelector('[name="'+key+'"]').value.trim();row.lat=Number(row.lat);row.lon=Number(row.lon);try{editing=await save(row,{key:keyFor(editing),version});version=find(editing).version;status.textContent=scope==='preview'?'Saved to the dev preview only. Live airfield information is unchanged.':'Saved permanently. Other devices load this information when refreshed.';}catch(e){status.textContent=e.message;}finally{busy=false;refreshButtons();}};
+ document.addEventListener('click',e=>{const button=e.target.closest('[data-airfield-edit]');if(!button)return;e.preventDefault();try{edit(JSON.parse(decodeURIComponent(button.dataset.airfieldEdit)))}catch{}});
+ window.addEventListener('ffapp-info-pin-changed',refreshButtons);
+ const popupObserver=new MutationObserver(refreshButtons);let bootObserver;
+ function watchPopup(){const pane=document.querySelector('#map .leaflet-popup-pane');if(pane){popupObserver.observe(pane,{childList:true,subtree:true});bootObserver?.disconnect();refreshButtons();}}
+ bootObserver=new MutationObserver(watchPopup);bootObserver.observe(document.body,{childList:true,subtree:true});watchPopup();
+ window.addEventListener('focus',()=>{ready=load();ready.catch(()=>{})});
+ window.FISO_AIRFIELD_INFO=Object.freeze({keyFor,apply,applyOne,save,remove,edit,buttonHtml,detailsHtml,hasSaved:row=>!!find(row)&&!find(row).deleted,getVersion:key=>find(key)?.version||0,reload:()=>{ready=load();return ready;},get ready(){return ready;},get scope(){return scope;},get edition(){return edition;}});
+ ready=load();ready.catch(()=>{});
+})();

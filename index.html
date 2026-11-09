@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="dns-prefetch" href="//www.gstatic.com">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+<meta name="copyright" content="Copyright © 2026 Simon Vaughan. All rights reserved.">
+<meta name="application-name" content="FFApp / FISO FID APP • DEV Release 451">
+<title>FISO FID APP &mdash; Local Traffic &amp; NOTAM Scope</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+
+
+
+
+<script type="module">
+  // Release 294: PDF.js is intentionally lazy-loaded. It is large and is only
+  // required for PIB/ENR PDF imports, so downloading it during every app startup
+  // needlessly competes with the operational scripts.
+  let pdfLoadPromise = null;
+  window.ffappLoadPdfJs = function () {
+    if (window.__pdfjsLib) return Promise.resolve(window.__pdfjsLib);
+    if (pdfLoadPromise) return pdfLoadPromise;
+    pdfLoadPromise = import("https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.min.mjs")
+      .then(function (pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs";
+        window.__pdfjsLib = pdfjsLib;
+        window.dispatchEvent(new Event("pdfjs-ready"));
+        return pdfjsLib;
+      })
+      .catch(function (err) { pdfLoadPromise = null; throw err; });
+    return pdfLoadPromise;
+  };
+</script>
+<!-- Release314: GeoTIFF and XLSX are loaded only when the operator actually uses
+     chart/spreadsheet import. They are intentionally absent from the login critical path. -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style id="ffapp-startup-splash-style">
+  #ffappStartupSplash{
+    position:fixed;inset:0;z-index:2147483647;
+    display:flex;align-items:center;justify-content:center;
+    background:#030b12;color:#d7e5ee;font-family:"IBM Plex Mono",monospace;
+    transition:opacity .22s ease,visibility .22s ease,background .3s ease;
+  }
+  /* DEV427: reveal the operational map as soon as the page has painted, while
+     retaining a compact non-blocking loading card until the UTC clock ticks. */
+  #ffappStartupSplash.ffapp-map-visible{
+    background:transparent;pointer-events:none;align-items:flex-start;justify-content:center;
+    padding-top:72px;box-sizing:border-box;
+  }
+  #ffappStartupSplash.ffapp-map-visible .ffapp-startup-card{
+    width:min(390px,82vw);padding:12px 15px;background:rgba(7,18,27,.94);
+    box-shadow:0 8px 24px rgba(0,0,0,.42);backdrop-filter:blur(4px);
+  }
+  #ffappStartupSplash.ffapp-map-visible .ffapp-startup-brand{font-size:12px;margin-bottom:7px;}
+  #ffappStartupSplash.ffapp-map-visible .ffapp-startup-row{min-height:20px;font-size:10px;}
+  #ffappStartupSplash.ffapp-map-visible .ffapp-startup-progress{margin-top:7px;}
+  #ffappStartupSplash.ffapp-map-visible .ffapp-startup-sub{margin-top:5px;font-size:8px;}
+  #ffappStartupSplash.ffapp-map-visible .ffapp-startup-help{display:none;}
+  @media(max-width:900px){#ffappStartupSplash.ffapp-map-visible{padding-top:58px}}
+  #ffappStartupSplash.ffapp-startup-hide{opacity:0;visibility:hidden;pointer-events:none;}
+  .ffapp-startup-card{
+    width:min(430px,88vw);padding:24px 26px;border:1px solid #28495d;border-radius:10px;
+    background:#07121b;box-shadow:0 18px 60px rgba(0,0,0,.52);
+  }
+  .ffapp-startup-brand{font-size:18px;font-weight:900;letter-spacing:.08em;color:#5fd4ff;margin-bottom:16px;}
+  .ffapp-startup-row{display:flex;align-items:center;gap:11px;min-height:28px;font-size:12px;color:#a9bdc9;}
+  .ffapp-startup-spinner{
+    width:14px;height:14px;flex:0 0 14px;border:2px solid #31546c;border-top-color:#5fd4ff;border-radius:50%;
+    animation:ffappStartupSpin .72s linear infinite;
+  }
+  .ffapp-startup-progress{height:4px;margin-top:15px;border-radius:4px;background:#102332;overflow:hidden;}
+  .ffapp-startup-progress>span{display:block;width:8%;height:100%;background:#5fd4ff;transition:width .55s ease;}
+  .ffapp-startup-sub{margin-top:9px;color:#6f8c9d;font-size:9px;letter-spacing:.05em;text-transform:uppercase;}
+  .ffapp-startup-help{margin-top:16px;padding:10px 12px;border:1px solid #36566a;border-radius:7px;background:#0b1923;color:#d8e8f2;font-size:10px;line-height:1.5;}
+  .ffapp-startup-help strong{color:#ffd36a;}
+  @keyframes ffappStartupSpin{to{transform:rotate(360deg)}}
+  @media(prefers-reduced-motion:reduce){.ffapp-startup-spinner{animation:none}}
+</style>
+
+
+
+
+
+
+
+<style id="critical-login-style">[hidden]{display:none!important}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#06090c;color:#cfe3ea;font-family:system-ui,sans-serif}.btn{border:1px solid #31576a;background:#0c202b;color:#e7f3f7;padding:10px;border-radius:6px;cursor:pointer}.btn.primary{background:#123d48}.btn:disabled{opacity:.5}.ffauth-overlay{overflow:auto}.ffauth-save-warning{font-size:10px;line-height:1.35;color:#8fa7b1;margin:6px 0 8px}/* Secure user authentication and administration */
+.ffauth-overlay{position:fixed;inset:0;z-index:200000;background:radial-gradient(circle at 20% 25%,#0b3444 0,transparent 36%),linear-gradient(145deg,#02070b,#07141c);display:flex;align-items:center;justify-content:center;padding:22px;color:#e7f3f7}
+.ffauth-overlay:before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(96,220,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(96,220,255,.05) 1px,transparent 1px);background-size:42px 42px}
+.ffauth-radar-bg{position:absolute;width:min(72vw,650px);aspect-ratio:1;border:1px solid rgba(96,220,255,.22);border-radius:50%;left:-10vw;top:4vh}.ffauth-radar-bg:before,.ffauth-radar-bg:after{content:"";position:absolute;border:1px solid rgba(96,220,255,.14);border-radius:50%}.ffauth-radar-bg:before{inset:17%}.ffauth-radar-bg:after{inset:34%}.ffauth-radar-bg span{position:absolute;left:50%;top:50%;width:48%;height:2px;transform-origin:left;background:linear-gradient(90deg,#57f49a,transparent);animation:ffauthSweep 5s linear infinite}.ffauth-radar-bg i,.ffauth-radar-bg b{position:absolute;width:6px;height:6px;border-radius:50%;background:#57f49a;box-shadow:0 0 12px #57f49a}.ffauth-radar-bg i{left:67%;top:30%}.ffauth-radar-bg b{left:35%;top:72%}@keyframes ffauthSweep{to{transform:rotate(360deg)}}
+.ffauth-card{position:relative;width:min(720px,96vw);background:linear-gradient(180deg,rgba(10,29,40,.98),rgba(4,14,21,.99));border:1px solid #28556a;border-radius:17px;box-shadow:0 28px 90px rgba(0,0,0,.7);overflow:hidden}
+.ffauth-head{display:flex;align-items:center;gap:16px;padding:21px 25px;border-bottom:1px solid rgba(96,220,255,.18)}.ffauth-head h2{margin:0;font-size:27px;letter-spacing:.12em}.ffauth-head p{margin:5px 0 0;color:#92aab4;font-size:11px;letter-spacing:.08em}.ffauth-logo{width:66px;height:66px;border:2px solid #62dcff;border-radius:50%;display:grid;place-items:center;position:relative;color:#57f49a;font-weight:800;font-size:10px;text-align:center}.ffauth-logo:before,.ffauth-logo:after{content:"";position:absolute;border:1px solid rgba(96,220,255,.38);border-radius:50%}.ffauth-logo:before{inset:8px}.ffauth-logo:after{inset:20px}
+.ffauth-body{padding:22px 25px}.ffauth-body label,.ffauth-user-dialog label{display:block;color:#92aab4;font-size:11px;font-weight:700;margin:12px 0 6px}.ffauth-body input,.ffauth-body select,.ffauth-user-dialog input,.ffauth-user-dialog select{width:100%;padding:11px 12px;border:1px solid #2b586a;border-radius:7px;background:#041019;color:#e7f3f7;font-size:14px}.ffauth-password-row{display:flex}.ffauth-password-row input{border-radius:7px 0 0 7px}.ffauth-password-row button{border:1px solid #2b586a;border-left:0;background:#0d2430;color:#62dcff;border-radius:0 7px 7px 0;padding:0 12px}.ffauth-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:15px}.ffauth-link{background:none;border:0;color:#62dcff;text-decoration:underline;cursor:pointer}.ffauth-notice{border-left:3px solid #ffc65c;background:rgba(255,198,92,.08);padding:10px 12px;color:#f4dcad;font-size:12px;line-height:1.45}.ffauth-disclaimer{margin:0 25px 23px;padding:12px;border:1px solid rgba(255,119,119,.35);background:rgba(255,119,119,.07);border-radius:7px;color:#ffc8c8;font-size:11px;line-height:1.5}.ffauth-message{min-height:18px;margin:10px 0 0;font-size:12px;color:#92aab4}.ffauth-message.err{color:#ff7777}.ffauth-message.ok{color:#57f49a}
+@media(max-width:760px){.ffauth-head h2{font-size:20px}.ffauth-overlay{padding:10px}.ffauth-head,.ffauth-body{padding:16px}.ffauth-disclaimer{margin:0 16px 16px}}@media(prefers-reduced-motion:reduce){.ffauth-radar-bg span{animation:none}}</style>
+</head>
+<body>
+<div id="ffappStartupSplash" style="display:none" role="status" aria-live="polite" aria-label="FISO FID loading">
+  <div class="ffapp-startup-card">
+    <div class="ffapp-startup-brand">FISO FID · SYSTEM START</div>
+    <div class="ffapp-startup-row"><span class="ffapp-startup-spinner" aria-hidden="true"></span><span id="ffappStartupText">Initialising ADS-B data…</span></div>
+    <div class="ffapp-startup-progress"><span id="ffappStartupBar"></span></div>
+    <div class="ffapp-startup-sub" id="ffappStartupSub">Establishing operational data environment</div>
+    <div class="ffapp-startup-help"><strong>LIVE AUTO PIB:</strong> NATS PIB.xml loads and AUTO PLOT runs automatically. Manual PIB upload remains available as fallback.</div>
+  </div>
+</div>
+<script async src="startup.js?v=472"></script>
+
+<!-- Secure login overlay. Visibility is controlled by ffapp-auth.js. -->
+<div id="loginOverlay" class="ffauth-overlay" aria-hidden="false">
+  <div class="ffauth-radar-bg" aria-hidden="true"><span></span><i></i><b></b></div>
+  <section class="ffauth-card" role="dialog" aria-modal="true" aria-labelledby="ffauthTitle">
+    <div class="ffauth-head">
+      <div class="ffauth-logo"><span>FISO<br>FID</span></div>
+      <div><h2 id="ffauthTitle">FISO FID APP</h2><p>RADAR · NOTAM · OPERATIONAL AWARENESS</p></div>
+    </div>
+    <div id="ffauthLoginView" class="ffauth-body">
+      <div class="ffauth-notice">Sign in to your account or authenticate as a viewer. Then choose ENTER or VIEW to open the map.</div>
+      <label for="ffauthUserNumber">USER NUMBER</label>
+      <input id="ffauthUserNumber" type="text" inputmode="numeric" autocomplete="username" maxlength="10" placeholder="User number">
+      <label for="ffauthPassword">PASSWORD</label>
+      <div class="ffauth-password-row"><input id="ffauthPassword" type="password" autocomplete="current-password" placeholder="Password"><button type="button" id="ffauthShowPassword">SHOW</button></div>
+      <div class="ffauth-save-warning">Your password is not stored in the website code. Firebase keeps the signed-in session on this device.</div>
+      <div class="ffauth-actions"><button type="button" id="ffauthLoginBtn" disabled class="btn primary">SIGN IN</button><button type="button" id="ffauthViewOnlyBtn" disabled class="btn">SIGN IN AS VIEWER</button><button type="button" id="ffauthResetRequestBtn" disabled class="ffauth-link">Request password reset</button></div>
+      <div class="ffauth-actions"><button type="button" id="ffauthViewBtn" class="btn primary" disabled hidden>VIEW APP</button><button type="button" id="ffauthBeforeViewLogoutBtn" class="btn" hidden>Sign out</button></div>
+      <p id="ffauthMessage" class="ffauth-message" role="status">Connecting secure sign-in…</p>
+    </div>
+    <div class="ffauth-disclaimer"><strong>IMPORTANT DISCLAIMER:</strong> Information displayed within the FISO FID App may be incomplete, delayed or incorrect. It must not be used as the sole source of operational information. Always refer to current official NOTAM information, pilot reports and other approved operational sources for accurate and authoritative data.</div>
+  </section>
+</div>
+
+<div id="workspaceMount" hidden inert></div>
+
+<script defer src="pib-snapshot.js?v=448"></script>
+<!-- DEV471 STARTUP RECOVERY BEGIN -->
+<div id="ffappRecovery" role="status" hidden style="position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:2147483647;max-width:90vw;padding:12px;background:#102d3e;color:#fff;border:1px solid #72dcff;border-radius:6px;font:13px system-ui,sans-serif"><span id="ffappRecoveryMessage"></span> <button id="ffappRecoveryRetry" type="button" class="btn">Retry loading</button></div>
+<script>
+(function(){
+  'use strict';
+  var release='472',key='ffapp_startup_retry_v472',fresh=new URL(location.href).searchParams.get('ffapp_recover')||'';
+  var nonce=/^\d{10,16}$/.test(fresh)?fresh:'',loading=false;
+  function assetUrl(src){
+    var u=new URL(src,location.href);
+    if(u.origin!==location.origin)return src;
+    u.searchParams.set('release',release);
+    if(nonce)u.searchParams.set('fresh',nonce);
+    return u.href;
+  }
+  function notice(message){
+    document.getElementById('ffappRecoveryMessage').textContent=message;
+    document.getElementById('ffappRecovery').hidden=false;
+    window.ffappStartup&&window.ffappStartup.hide();
+  }
+  function reloadFresh(){
+    var now=Date.now();try{sessionStorage.setItem(key,String(now));}catch(e){}
+    var u=new URL(location.href);u.searchParams.set('ffapp_recover',String(now));location.replace(u.href);
+  }
+  function retryOnce(){
+    var previous=0;try{previous=Number(sessionStorage.getItem(key)||0);}catch(e){}
+    if(nonce||previous&&Date.now()-previous<600000){notice('Loading could not finish. Check your connection, then retry. Your saved information has been kept.');return false;}
+    reloadFresh();return true;
+  }
+  function ready(){
+    document.getElementById('ffappRecovery').hidden=true;
+    try{sessionStorage.removeItem(key);}catch(e){}
+    var u=new URL(location.href);if(u.searchParams.has('ffapp_recover')){u.searchParams.delete('ffapp_recover');history.replaceState(history.state,'',u.href);}
+  }
+  function legacyWorker(url){try{var u=new URL(url);return u.origin===location.origin&&u.pathname==='/firebase-messaging-sw.js';}catch(e){return false;}}
+  async function retireLegacyWorker(){
+    if(!navigator.serviceWorker)return false;
+    var controlled=!!(navigator.serviceWorker.controller&&legacyWorker(navigator.serviceWorker.controller.scriptURL));
+    try{
+      await Promise.race([navigator.serviceWorker.getRegistrations().then(function(rows){return Promise.all(rows.filter(function(r){return [r.active,r.waiting,r.installing].some(function(w){return w&&legacyWorker(w.scriptURL);});}).map(function(r){return r.unregister();}));}),new Promise(function(resolve){setTimeout(resolve,1500);})]);
+    }catch(e){}
+    return controlled;
+  }
+  async function downloadAuth(){
+    for(var attempt=0;attempt<2;attempt++){
+      var abort=new AbortController(),timer=setTimeout(function(){abort.abort();},12000);
+      try{
+        var u=new URL(assetUrl('ffapp-auth.js?v=472'));u.searchParams.set('boot',Date.now()+'-'+attempt);
+        var response=await fetch(u.href,{cache:'no-store',credentials:'same-origin',redirect:'error',signal:abort.signal});
+        if(!response.ok||!/(?:java|ecma)script/i.test(response.headers.get('content-type')||''))throw Error('Login file unavailable');
+        var code=await response.text();if(abort.signal.aborted||code.length>2*1024*1024)throw Error('Login file incomplete');
+        clearTimeout(timer);
+        var script=document.createElement('script'),executionError=null;
+        function capture(event){executionError=event.error||Error('Login file could not start');}
+        window.addEventListener('error',capture);script.textContent=code;document.head.appendChild(script);window.removeEventListener('error',capture);
+        if(executionError||!window.FFAPP_AUTH_BUILD_VERSION){notice('The login screen could not start. Retry loading without clearing browser history.');return;}
+        return;
+      }catch(error){if(attempt===1)notice('The login screen could not download. Check your connection, then retry.');}
+      finally{clearTimeout(timer);}
+    }
+  }
+  window.FISO_STARTUP_RECOVERY={assetUrl:assetUrl,retryOnce:retryOnce,reloadFresh:reloadFresh,ready:ready,notice:notice};
+  async function start(){
+    if(loading)return;loading=true;
+    var splash=document.getElementById('ffappStartupSplash');if(splash)splash.style.display='none';
+    document.getElementById('ffappRecoveryRetry').addEventListener('click',reloadFresh);
+    if(await retireLegacyWorker()){if(retryOnce())return;}
+    await downloadAuth();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
+</script>
+<!-- DEV471 STARTUP RECOVERY END -->
+
+</body>
+</html>

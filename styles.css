@@ -1,0 +1,3140 @@
+
+/* DEV420: reliable shared aircraft/TDB scaling across Leaflet panes. */
+:root{--fiso-aircraft-scale:1;--fiso-tdb-scale:1;}
+
+  :root{
+    --bg:#06090c;
+    --panel-bg:#0d1620;
+    --panel-bg-2:#101b27;
+    --line:#1c2b35;
+    --line-soft:#162230;
+    --text:#cfe3ea;
+    --text-dim:#7f97a1;
+    --amber:#ffb648;
+    --green:#39ff8a;
+    --green-dim:#1f8f53;
+    --cyan:#5fd4ff;
+    --magenta:#d59bff;
+    --red:#ff5d5d;
+    --lightblue:#8ec9ff;
+    --yellow:#ffe14d;
+    --blue:#2f9bff;
+    --mono:'IBM Plex Mono', ui-monospace, monospace;
+    --sans:'Inter', system-ui, sans-serif;
+    --strips-width:200px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden;}
+  button, input, select, textarea{font-family:var(--sans);}
+  ::selection{background:var(--cyan);color:#06090c;}
+
+  a{color:var(--cyan);}
+
+  /* ---------- layout ---------- */
+  #app{display:flex;flex-direction:column;height:100vh;width:100vw;}
+
+  header{
+    display:flex;align-items:center;gap:16px;
+    padding:9px 16px;
+    background:linear-gradient(180deg,#0c141c,#0a1119);
+    border-bottom:1px solid var(--line);
+    flex:0 0 auto;
+    z-index:500;
+  }
+  header .brand{display:flex;align-items:center;gap:10px;}
+  header .brand .dot{
+    width:10px;height:10px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 8px var(--green);
+    animation:blink 2s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce){ header .brand .dot{animation:none;} }
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.35;}}
+  header h1{
+    font-family:var(--mono);font-size:15px;letter-spacing:.08em;
+    margin:0;color:var(--text);font-weight:600;text-transform:uppercase;
+  }
+  header h1 span{color:var(--green);}
+  header .clock{font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-left:auto;text-align:right;line-height:1.4;}
+  header .status{
+    font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:3px;
+    border:1px solid var(--line);color:var(--text-dim);white-space:nowrap;
+  }
+  header .status.ok{color:var(--green);border-color:var(--green-dim);}
+  header .status.err{color:var(--red);border-color:#5a2323;}
+  header .panel-toggle{
+    display:none;background:none;border:1px solid var(--line);color:var(--text);
+    border-radius:4px;width:34px;height:34px;font-size:16px;cursor:pointer;
+  }
+  header .search-box{display:flex;align-items:center;gap:6px;}
+  header .search-box input{
+    width:260px;background:var(--panel-bg-2);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:6px 8px;font-size:12px;font-family:var(--mono);text-transform:uppercase;
+  }
+  header .search-box input::placeholder{text-transform:none;color:var(--text-dim);}
+  header .search-box .btn{padding:6px 9px;font-size:13px;}
+  header .search-box .search-status{font-size:11px;color:var(--text-dim);white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis;}
+  header .search-box .search-status.err{color:var(--red);}
+  @keyframes locFlash{0%,49%{background:#ff2020;box-shadow:0 0 8px #ff2020;}50%,100%{background:#1a0000;box-shadow:none;}}
+  .loc-dot{width:10px;height:10px;border-radius:50%;border:2px solid #ff3333;animation:locFlash 0.7s steps(1,end) infinite;}
+
+  main{flex:1 1 auto;position:relative;display:flex;overflow:hidden;}
+  #map{flex:1 1 auto;height:100%;background:#070b0f;}
+  .leaflet-container{background:#070b0f;font-family:var(--sans);}
+
+  /* ---------- side panel ---------- */
+  #side{
+    width:500px;flex:0 0 500px;
+    background:var(--panel-bg);
+    border-left:1px solid var(--line);
+    display:flex;flex-direction:column;
+    z-index:400;
+  }
+  #side .tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--line);flex:0 0 auto;}
+  #side .tabs button{
+    flex:1 1 auto;background:none;border:none;color:var(--text-dim);
+    font-family:var(--mono);font-size:9px;letter-spacing:.02em;text-transform:uppercase;
+    padding:7px 3px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;
+  }
+  #side .tabs button.active{color:var(--text);border-bottom-color:var(--cyan);}
+  #side .tabs button:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--cyan);outline-offset:1px;
+  }
+  #side .tabpanel{flex:1 1 auto;overflow-y:auto;padding:14px 16px 24px;}
+  #side .tabpanel.hidden{display:none;}
+
+  h2.section-title{
+    font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--text-dim);margin:18px 0 8px;font-weight:600;
+  }
+  h2.section-title:first-child{margin-top:0;}
+  .field{margin-bottom:10px;}
+  .field label{display:block;font-size:11px;color:var(--text-dim);margin-bottom:4px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  input[type=text], input[type=number], textarea, select{
+    width:100%;background:var(--panel-bg-2);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:7px 8px;font-size:13px;
+  }
+  textarea{resize:vertical;font-family:var(--mono);font-size:12px;line-height:1.5;}
+  .btn{
+    background:var(--panel-bg-2);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:7px 12px;font-size:12px;cursor:pointer;font-weight:500;
+  }
+  .btn:hover{border-color:var(--cyan);}
+  .btn.primary{background:var(--cyan);color:#06141c;border-color:var(--cyan);}
+  .btn.primary:hover{filter:brightness(1.08);}
+  .btn.danger{color:var(--red);}
+  .btn.danger:hover{border-color:var(--red);}
+  .btn.full{width:100%;}
+  .btn-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .hint{font-size:11px;color:var(--text-dim);line-height:1.5;margin:6px 0 0;}
+  .hint code{background:var(--panel-bg-2);padding:1px 4px;border-radius:3px;}
+
+  .list-item{
+    border:1px solid var(--line);border-radius:5px;padding:8px 10px;margin-bottom:7px;
+    background:var(--panel-bg-2);
+  }
+  .list-item .li-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .list-item .li-name{font-weight:600;font-size:13px;}
+  .list-item .li-meta{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:3px;}
+  .list-item .li-actions{display:flex;gap:6px;margin-top:6px;}
+  .list-item .li-actions button{font-size:11px;padding:3px 8px;}
+  .empty-note{font-size:12px;color:var(--text-dim);font-style:italic;padding:8px 0;}
+
+  .chip{
+    display:inline-block;font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:9px;
+    border:1px solid var(--line);color:var(--text-dim);margin-right:4px;
+  }
+  .chip.live{color:var(--green);border-color:var(--green-dim);}
+  .chip.warn{color:var(--amber);border-color:#5a4416;}
+
+  /* range & bearing */
+  .rb-readout{background:var(--panel-bg-2);border:1px solid var(--line);border-radius:5px;padding:8px 10px;margin-bottom:10px;}
+  .rb-readout-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:3px 0;font-size:12px;}
+  .rb-readout-row .lbl{color:var(--text-dim);}
+  .rb-readout-row .val{font-family:var(--mono);font-weight:600;text-align:right;}
+  .rb-readout-row.big .val{font-size:16px;color:var(--cyan);}
+  .rb-handle{
+    width:18px;height:18px;border-radius:50%;background:rgba(255,225,77,.92);border:2px solid #06090c;
+    display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:700;
+    color:#06090c;cursor:grab;box-shadow:0 0 4px rgba(0,0,0,.55);
+  }
+  .leaflet-marker-draggable .rb-handle{cursor:grabbing;}
+
+  /* legend */
+  #legend{
+    position:absolute;left:12px;bottom:132px;z-index:450;
+    background:rgba(13,22,32,.88);border:1px solid var(--line);border-radius:6px;
+    padding:8px 12px;font-size:11px;color:var(--text-dim);font-family:var(--mono);
+    backdrop-filter:blur(3px);
+  }
+  #legend div{display:flex;align-items:center;gap:7px;margin:3px 0;}
+  #legend .sw{width:11px;height:11px;border-radius:3px;flex:0 0 auto;}
+
+  /* map tools (playback toggle) -- bottom-left, stacked above the Leaflet zoom control */
+  #mapTools{position:absolute;left:calc(var(--strips-width) + 12px);bottom:86px;z-index:490;display:flex;gap:8px;}
+  #mapTools .btn{background:rgba(13,22,32,.88);backdrop-filter:blur(3px);font-size:12px;}
+  #mapTools .btn.active{border-color:var(--cyan);color:var(--cyan);}
+
+  /* left aircraft info panel */
+  .ac-info{
+    display:none;
+    position:absolute;left:var(--strips-width);top:0;bottom:0;width:230px;z-index:480;
+    background:rgba(13,22,32,.95);border-right:1px solid var(--line);
+    padding:16px 16px 14px;backdrop-filter:blur(3px);
+    transform:translateX(calc(-100% - var(--strips-width)));transition:transform .2s ease;
+    overflow-y:auto;
+  }
+  .ac-info.open{transform:translateX(0);}
+  .ac-info-close{
+    position:absolute;top:10px;right:10px;background:none;border:none;color:var(--text-dim);
+    font-size:18px;line-height:1;cursor:pointer;padding:4px;
+  }
+  .ac-info-close:hover{color:var(--text);}
+  .ac-info-title{
+    font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--cyan);margin:0 24px 14px 0;font-weight:600;
+  }
+  .ac-info-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line-soft);}
+  .ac-info-row .lbl{font-size:11px;color:var(--text-dim);}
+  .ac-info-row .val{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600;text-align:right;}
+  .ac-info .hint{margin-top:14px;}
+
+  /* playback bar */
+  .playback-bar{
+    position:absolute;left:0;right:0;bottom:0;z-index:470;
+    background:rgba(10,17,24,.95);border-top:1px solid var(--line);
+    padding:12px 16px;backdrop-filter:blur(3px);
+    transform:translateY(100%);transition:transform .2s ease;
+  }
+  .playback-bar.open{transform:translateY(0);}
+  .pb-row{display:flex;align-items:center;gap:10px;}
+  .pb-row-main{margin-bottom:10px;}
+  .pb-date{
+    font-family:var(--mono);font-size:11px;color:var(--text-dim);min-width:90px;
+    border:1px solid var(--line);border-radius:4px;padding:6px 9px;text-align:center;
+  }
+  .pb-icon-btn{
+    background:var(--panel-bg-2);border:1px solid var(--line);color:var(--text);
+    border-radius:50%;width:30px;height:30px;font-size:11px;cursor:pointer;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .pb-icon-btn:hover{border-color:var(--cyan);}
+  .pb-scrubber-wrap{flex:1 1 auto;display:flex;flex-direction:column;gap:2px;}
+  .pb-scrubber-wrap input[type=range]{width:100%;}
+  .pb-scrubber-readout{font-family:var(--mono);font-size:11px;color:var(--text-dim);text-align:center;}
+  .pb-row-sliders{gap:24px;flex-wrap:wrap;}
+  .pb-slider-group{display:flex;flex-direction:column;gap:4px;flex:1 1 200px;min-width:160px;}
+  .pb-slider-group label{font-size:11px;color:var(--text-dim);}
+  .pb-hint{margin-top:8px;}
+  .hint-q{
+    display:inline-block;width:13px;height:13px;border-radius:50%;border:1px solid var(--line);
+    text-align:center;line-height:12px;font-size:9px;color:var(--text-dim);cursor:help;
+  }
+
+  /* aircraft return + track data block (TDB) */
+  .ac-wrap{position:relative;width:0;height:0;}
+  .ac-shape-rot{position:absolute;top:0;left:0;cursor:pointer;}
+  .ac-shape-rot svg{
+    display:block;color:#0a0a0a;
+    transform:scale(var(--fiso-aircraft-scale,1));transform-origin:center center;
+    filter:drop-shadow(0 0 1.4px #fff) drop-shadow(0 0 1.4px #fff) drop-shadow(0 0 2px rgba(0,0,0,.35));
+  }
+  .ac-shape-rot.cat-light svg,
+  .ac-shape-rot.cat-jet svg{color:#1e40af;}
+  .ac-shape-rot.cat-multiprop svg{color:#f08a24;}
+  .ac-shape-rot.cat-heli svg{color:#f0c130;}
+  .ac-shape-rot.cat-drone svg{color:#b89af0;}
+  .ac-shape-rot.operational-orange svg{color:#f08a24 !important;filter:drop-shadow(0 0 1.4px #fff) drop-shadow(0 0 3px rgba(240,138,36,.75));}
+  .ac-shape-rot.emg svg{color:var(--red);filter:drop-shadow(0 0 1.4px #fff) drop-shadow(0 0 5px rgba(255,93,93,.85));}
+  .ac-shape-rot.priority-squawk-flash svg{animation:prioritySquawkAircraftFlash 0.65s steps(1,end) infinite;}
+  @keyframes prioritySquawkAircraftFlash{
+    0%,49%{color:#ff2020;filter:drop-shadow(0 0 1.4px #fff) drop-shadow(0 0 7px #ff2020);}
+    50%,100%{color:#000;filter:drop-shadow(0 0 1.4px #fff) drop-shadow(0 0 4px rgba(0,0,0,.95));}
+  }
+  .ac-rect{
+    position:absolute;top:0;left:0;width:32px;height:32px;margin:-16px 0 0 -16px;
+    border:3px solid #0a2463;border-radius:4px;opacity:0;pointer-events:none;background:rgba(10,36,99,.18);
+  }
+  .ac-rect.on{opacity:1;}
+  .ac-rect.on.pink{border-color:#ff69b4;background:rgba(255,105,180,.22);}
+  .ac-tdb.tdb-custom-hl{background:rgba(255,105,180,.18) !important;}
+  .ac-leader{
+    position:absolute;top:0;left:0;height:1px;background:rgba(20,30,38,.45);
+    transform-origin:0 50%;pointer-events:none;
+  }
+  .ac-tdb{
+    position:absolute;left:16px;top:-50px;min-width:130px;
+    background:#08111a;border:1px solid var(--line);border-radius:4px;
+    padding:3px 6px;font-family:var(--mono);font-size:9.5px;line-height:1.5;color:var(--text);
+    cursor:move;user-select:none;touch-action:none;z-index:10030;pointer-events:auto;
+    transform:scale(var(--fiso-tdb-scale,1));transform-origin:0 0;
+  }
+  .ac-tdb.tdb-hidden{display:none;}
+  .tdb-close{position:absolute;top:2px;right:3px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:11px;padding:0 2px;line-height:1;z-index:10;}
+  .tdb-close:hover{color:#fff;}
+  .al-header{display:block;color:var(--cyan);font-size:7px;font-weight:700;letter-spacing:.07em;text-align:center;border-bottom:1px solid rgba(95,212,255,0.2);margin-bottom:1px;padding-bottom:1px;}
+  .ac-ackhzd{display:none;margin-top:2px;border-top:1px solid rgba(255,68,0,0.3);padding-top:2px;text-align:center;}
+  .ackhzd-btn{font-family:var(--mono);font-size:8px;font-weight:700;background:#7f1d1d;border:1px solid #ff4400;color:#ffaaaa;border-radius:3px;padding:1px 5px;cursor:pointer;animation:hazbuFl 0.6s steps(1,end) infinite;white-space:nowrap;}
+  .ackhzd-btn:hover{background:#9a2424;}
+  .hemi-wrap{display:flex;gap:4px;align-items:center;}
+  .hemi-btn{font-family:var(--mono);font-size:11px;font-weight:700;background:#1a3a50;border:1px solid #2a5a70;color:#5fd4ff;border-radius:3px;padding:2px 6px;cursor:pointer;min-width:26px;text-align:center;flex-shrink:0;}
+  .hemi-btn:hover{background:#1e4a64;}
+  .ac-tdb .tdb-pje{display:none;color:var(--amber);font-weight:700;letter-spacing:.06em;}
+  /* PJE floating label above the aircraft icon */
+  .ac-pje-flag{
+    position:absolute;bottom:16px;left:0;transform:translateX(-50%);
+    font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.06em;
+    color:#06090c;background:var(--amber);
+    padding:0 4px;border-radius:2px;white-space:nowrap;pointer-events:none;display:none;
+    box-shadow:0 0 4px rgba(0,0,0,.5);
+  }
+  .ac-pje-flag.show{display:block;}
+  /* Aircraft always-visible mini-label (callsign / type / alt) */
+  .ac-label{
+    position:absolute;left:0;top:0;width:32px;
+    background:rgba(8,17,26,0.88);border:1px solid rgba(28,43,53,0.9);border-radius:3px;
+    padding:2px 2px;font-family:var(--mono);font-size:8px;line-height:1.2;
+    pointer-events:all;cursor:move;user-select:none;touch-action:none;
+    z-index:10020;display:none;text-align:center;
+    transform:scale(var(--fiso-tdb-scale,1));transform-origin:0 0;
+  }
+  .ac-label.ac-label-show{display:block;}
+  .ac-label .al-cs{display:block;color:#fff;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.95);}
+  .ac-label .al-type{display:block;color:var(--text-dim);}
+  .ac-label .al-alt{display:block;color:var(--text);}
+  .ac-label-leader{
+    position:absolute;top:0;left:0;height:1px;background:rgba(100,160,200,0.35);
+    transform-origin:0 50%;pointer-events:none;
+  }
+  #map.hide-tdb .ac-label, #map.hide-tdb .ac-label-leader{display:none;}
+  .ac-tdb .tdb-callsign{font-weight:800;color:#fff;font-size:11px;text-shadow:0 1px 2px rgba(0,0,0,.95);}
+  .ac-tdb .tdb-row{white-space:nowrap;color:var(--text-dim);}
+  .ac-tdb .tdb-row span{color:var(--text);}
+  .ac-tdb .cs-edit-row{margin:1px 0 2px;}
+  .ac-tdb .route-row{display:flex;align-items:center;gap:3px;margin-top:2px;}
+  .ac-tdb .tdb-editable{
+    width:36px;background:#cfd2d6;border:1px solid var(--line);color:#000;font-weight:400;
+    font-family:var(--mono);font-size:9px;padding:1px 2px;border-radius:2px;text-transform:uppercase;
+    cursor:text;
+  }
+  .ac-tdb .tdb-editable::placeholder{color:#000;opacity:.5;}
+  .ac-tdb .tdb-editable:not(:placeholder-shown){font-weight:700;color:#000;}
+  .ac-tdb .cs-edit-row .tdb-editable{width:100%;box-sizing:border-box;}
+  .ac-tdb .route-row .arrow{color:var(--text-dim);font-size:9px;}
+  .ac-tdb .vec-toggle-row{
+    display:flex;align-items:center;gap:5px;margin-top:4px;color:var(--text-dim);
+    font-size:8.5px;cursor:pointer;
+  }
+  .ac-tdb .vec-toggle-row input{margin:0;width:auto;cursor:pointer;}
+  .ac-tdb.tdb-flash{animation:tdbflash 1s steps(1,end) infinite;}
+  .ac-tdb.tdb-priority-flash{animation:prioritySquawkTdbFlash 0.65s steps(1,end) infinite !important;}
+  .ac-tdb.tdb-0027-flash{animation:tdb0027flash 0.8s steps(1,end) infinite;}
+  .ac-tdb.tdb-pointout{border-color:#f08a24 !important;box-shadow:0 0 6px rgba(240,138,36,.60) !important;}
+  .tdb-pointout + *{}
+  .tdb-po-row{display:flex;align-items:center;gap:5px;margin-top:4px;color:#f0a050;font-size:8.5px;cursor:pointer;}
+  .tdb-po-row input{margin:0;width:auto;cursor:pointer;accent-color:#f08a24;}
+  @keyframes prioritySquawkTdbFlash{
+    0%,49%{background:#ff2020 !important;border-color:#ff2020 !important;color:#fff !important;box-shadow:0 0 9px rgba(255,32,32,.75);}
+    50%,100%{background:#000 !important;border-color:#000 !important;color:#fff !important;box-shadow:0 0 5px rgba(0,0,0,.95);}
+  }
+  @keyframes tdb0027flash{
+    0%,49%{border-color:#00ff44;box-shadow:0 0 8px #00ff44;}
+    50%,100%{border-color:#000;box-shadow:0 0 4px rgba(0,0,0,.8);}
+  }
+  @keyframes tdbflash{
+    0%,49%{background:rgba(255,93,93,.88);border-color:var(--red);}
+    50%,100%{background:rgba(9,14,19,.9);border-color:var(--line);}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .ac-tdb.tdb-flash{animation:none;background:rgba(255,93,93,.55);border-color:var(--red);}
+    .ac-tdb.tdb-priority-flash{animation:none;background:#ff2020 !important;border-color:#000 !important;color:#fff !important;}
+    .ac-shape-rot.priority-squawk-flash svg{animation:none;color:#ff2020 !important;}
+    .strip-card.priority-squawk-strip{animation:none;background:#ff2020;border-color:#000;color:#fff;}
+  }
+  #map.hide-tdb .ac-tdb, #map.hide-tdb .ac-leader{display:none;}
+
+  /* NOTAM pin */
+  .notam-pin{display:flex;align-items:flex-end;justify-content:center;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}
+
+  /* airfields */
+  .airfield-icon{display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 2px rgba(95,212,255,.7));cursor:pointer;}
+
+  .hazard-pin{display:flex;align-items:flex-end;justify-content:center;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));cursor:pointer;}
+  .leaflet-marker-icon.hzflash{animation:hazardflash 1s steps(1,end) infinite;}
+  @keyframes hazardflash{0%,49%{opacity:1;}50%,100%{opacity:.22;}}
+  .ac-shape-rot.hazbuf-flash{animation:hazbuFl 0.6s steps(1,end) infinite;}
+  .leaflet-marker-icon.hazbuf-flash{animation:hazbuFl 0.6s steps(1,end) infinite;}
+  @keyframes hazbuFl{0%,49%{opacity:1;filter:drop-shadow(0 0 6px #ff4400);}50%,100%{opacity:0.15;filter:none;}}
+  @media (prefers-reduced-motion: reduce){.ac-shape-rot.hazbuf-flash,.leaflet-marker-icon.hazbuf-flash{animation:none;filter:drop-shadow(0 0 6px #ff4400);}}
+  @media (prefers-reduced-motion: reduce){.leaflet-marker-icon.hzflash{animation:none;opacity:.65;}}
+  .home-wrap{position:relative;width:1px;height:1px;}
+  .home-ping{
+    position:absolute;top:50%;left:50%;width:46px;height:46px;margin:-23px 0 0 -23px;
+    border-radius:50%;border:1.5px solid var(--cyan);opacity:0;
+    animation:ping 2.6s ease-out infinite;
+  }
+  .home-ping.p2{animation-delay:1.3s;}
+  @keyframes ping{0%{transform:scale(.15);opacity:.85;}100%{transform:scale(1);opacity:0;}}
+  @media (prefers-reduced-motion: reduce){ .home-ping{animation:none;opacity:.4;transform:scale(.6);} }
+  .home-dot{
+    position:absolute;top:50%;left:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;
+    border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan);
+  }
+  .ring-label{
+    font-family:var(--mono);font-size:10px;color:var(--text-dim);
+    background:rgba(7,11,15,.7);padding:0 4px;border-radius:3px;white-space:nowrap;
+  }
+  .leaflet-popup-content-wrapper{background:#0e1822;color:var(--text);border:1px solid var(--line);border-radius:6px;}
+  .leaflet-popup-tip{background:#0e1822;}
+  .pop{font-family:var(--mono);font-size:12px;min-width:170px;}
+  .pop h3{margin:0 0 6px;font-size:13px;color:var(--cyan);font-family:var(--sans);font-weight:600;}
+  .pop .pl{color:var(--text-dim);}
+  .pop .row{display:flex;justify-content:space-between;gap:10px;margin:2px 0;}
+  .pop .notam-e{font-family:var(--sans);font-size:11.5px;color:var(--text);margin-top:6px;line-height:1.5;white-space:pre-wrap;}
+
+  footer{
+    flex:0 0 auto;display:flex;justify-content:space-between;gap:12px;
+    padding:6px 16px;font-family:var(--mono);font-size:10.5px;color:var(--text-dim);
+    border-top:1px solid var(--line);background:#0a1119;
+  }
+
+  /* mobile */
+  @media (max-width:880px){
+    :root{--strips-width:0px;}
+    #side{
+      position:fixed;top:0;right:0;bottom:0;width:88vw;max-width:380px;
+      transform:translateX(100%);transition:transform .22s ease;box-shadow:-12px 0 30px rgba(0,0,0,.5);
+    }
+    #side.open{transform:translateX(0);}
+    header .panel-toggle{display:inline-block;}
+    #legend{font-size:10px;padding:6px 9px;}
+    header .search-box input{width:110px;}
+    header .search-box .search-status{display:none;}
+    .ac-info{width:78vw;max-width:300px;box-shadow:12px 0 30px rgba(0,0,0,.5);}
+    #mapTools{top:auto;bottom:12px;left:auto;right:12px;}
+    .pb-row-main{flex-wrap:wrap;}
+    .pb-date{display:none;}
+    #stripsPanel{display:none;}
+    /* reserve space for fixed bottom nav */
+    #app{padding-bottom:52px;box-sizing:border-box;height:100vh;}
+    /* hide desktop footer on mobile — nav bar replaces it */
+    footer{display:none;}
+    /* ensure side panel doesn't overlap nav bar */
+    #side{bottom:52px !important;}
+    /* show the nav bar */
+    #mobileNav{display:flex;}
+    /* strips panel goes full-screen when .mob-strips is applied */
+    #stripsPanel.mob-strips{
+      display:flex !important;
+      position:absolute;top:0;left:0;right:0;bottom:0;
+      z-index:450;width:100% !important;
+      flex-direction:column;
+    }
+  }
+  /* ?? mobile bottom nav bar (hidden on desktop) ?? */
+  #mobileNav{
+    position:fixed;bottom:0;left:0;right:0;height:52px;
+    background:var(--panel-bg);border-top:1px solid var(--line);
+    display:none;z-index:550;align-items:stretch;
+  }
+  .mob-nav-btn{
+    flex:1;background:none;border:none;color:var(--text-dim);
+    font-family:var(--mono);font-size:10px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;transition:color .15s;padding:0;
+  }
+  .mob-nav-btn:hover{color:var(--text);}
+  .mob-nav-btn.active{color:var(--cyan);}
+  .mob-nav-btn .mob-icon{font-size:18px;line-height:1;}
+  /* ---------- alert strip panel ---------- */
+  #stripsPanel{
+    flex:0 0 var(--strips-width);width:var(--strips-width);
+    background:var(--panel-bg);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;z-index:410;overflow:hidden;
+  }
+  #stripsPanelHeader{
+    flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+    padding:7px 8px 6px;border-bottom:1px solid var(--line);
+    font-family:var(--mono);font-size:10px;text-transform:uppercase;
+    letter-spacing:.06em;color:var(--text-dim);
+  }
+  #stripsPanelHeader .btn{padding:3px 7px;font-size:10px;}
+  #stripsList{
+    flex:1 1 auto;overflow-y:auto;
+    display:flex;flex-direction:column;gap:4px;padding:5px;
+  }
+  .strip-card{
+    background:var(--panel-bg-2);border:1px solid var(--line);border-radius:4px;
+    padding:5px 6px;font-family:var(--mono);font-size:9px;line-height:1.45;
+    cursor:pointer;position:relative;flex:0 0 auto;
+  }
+  .strip-card.highlighted{border-color:var(--cyan);box-shadow:0 0 5px rgba(95,212,255,.35);}
+  .strip-card.emg-strip{border-color:var(--red);background:rgba(255,93,93,.1);}
+  .strip-card.priority-squawk-strip{animation:prioritySquawkStripFlash 0.65s steps(1,end) infinite;}
+  @keyframes prioritySquawkStripFlash{
+    0%,49%{background:#ff2020;border-color:#ff2020;color:#fff;box-shadow:0 0 9px rgba(255,32,32,.75);}
+    50%,100%{background:#000;border-color:#000;color:#fff;box-shadow:0 0 5px rgba(0,0,0,.95);}
+  }
+  .strip-card.pch-strip{animation:pchStripFlash 0.6s steps(1,end) infinite;}
+  @keyframes pchStripFlash{0%,49%{border-color:var(--red);box-shadow:0 0 6px rgba(255,93,93,.6);}50%,100%{border-color:#fff;box-shadow:0 0 6px rgba(255,255,255,.4);}}
+  .strip-card.warned-strip{border-color:var(--amber);}
+  .strip-card.sqk0027-strip{animation:strip0027Flash 0.8s steps(1,end) infinite;}
+  @keyframes strip0027Flash{
+    0%,49%{border-color:#00ff44;box-shadow:0 0 7px #00ff44;}
+    50%,100%{border-color:#000;box-shadow:0 0 3px rgba(0,0,0,.9);}
+  }
+  .strip-card.hazbuf-strip{animation:hazbufStripFlash 0.7s steps(1,end) infinite;}
+  @keyframes hazbufStripFlash{
+    0%,49%{border-color:#ff00aa;box-shadow:0 0 8px rgba(255,0,170,0.7);}
+    50%,100%{border-color:#1a0010;box-shadow:0 0 3px rgba(0,0,0,.9);}
+  }
+  .strip-card.hazpara-orange-strip{animation:hazparaOrangeFlash 0.7s steps(1,end) infinite;}
+  @keyframes hazparaOrangeFlash{
+    0%,49%{border-color:#ff8800;box-shadow:0 0 8px rgba(255,136,0,0.7);}
+    50%,100%{border-color:#1a0800;box-shadow:0 0 3px rgba(0,0,0,.9);}
+  }
+  .strip-card.hazpara-red-strip{animation:hazparaRedFlash 0.7s steps(1,end) infinite;}
+  @keyframes hazparaRedFlash{
+    0%,49%{border-color:#ff2200;box-shadow:0 0 8px rgba(255,34,0,0.7);}
+    50%,100%{border-color:#1a0000;box-shadow:0 0 3px rgba(0,0,0,.9);}
+  }
+  .strip-card.spare-strip{border-color:var(--amber);border-style:dashed;}
+  @keyframes simCsFlash{0%,49%{color:#fff;}50%,100%{color:#00ff44;}}
+  .sim-cs-match{animation:simCsFlash 0.7s steps(1,end) infinite;}
+  .sim-cs-badge{display:inline-block;margin-left:4px;padding:1px 3px;border-radius:2px;background:#000;font-size:7px;font-weight:700;letter-spacing:0.5px;color:#ff9d22;animation:simCsFlash 0.7s steps(1,end) infinite;vertical-align:middle;}
+  .strip-card .sc-callsign{font-size:11px;font-weight:700;color:var(--green);margin-bottom:1px;}
+  .strip-card .sc-row{display:flex;gap:3px;align-items:baseline;flex-wrap:wrap;margin:1px 0;}
+  .strip-card .sc-val{color:var(--text);}
+  .strip-card .sc-lbl{color:var(--text-dim);}
+  .strip-card .sc-editable{
+    background:#cfd2d6;border:1px solid rgba(0,0,0,.18);color:#000;
+    font-family:var(--mono);font-size:8px;padding:0 2px;border-radius:2px;
+    text-transform:uppercase;cursor:text;
+  }
+  .strip-card .sc-editable.w28{width:28px;}
+  .strip-card .sc-editable.w44{width:44px;}
+  .strip-card .sc-editable.w60{width:60px;}
+  .strip-card .sc-editable::placeholder{color:#000;opacity:.4;}
+  .strip-card .sc-btn-row{display:flex;gap:4px;margin-top:3px;}
+  .strip-card .sc-btn{
+    background:var(--panel-bg);border:1px solid var(--line);color:var(--text-dim);
+    font-family:var(--mono);font-size:8px;padding:1px 5px;border-radius:2px;cursor:pointer;
+  }
+  .strip-card .sc-btn:hover{border-color:var(--cyan);color:var(--text);}
+  .strip-card .sc-btn.del{color:var(--red);}
+  .strip-card .sc-btn.del:hover{border-color:var(--red);}
+  .strip-card .sc-warn{color:var(--amber);font-size:8px;margin-top:2px;display:flex;align-items:center;gap:4px;}
+  .ac-tdb .tdb-pob{width:38px !important;}
+  .ac-tdb .tdb-other{width:100%;box-sizing:border-box;margin-top:2px;}
+  /* TDB enhanced rows */
+  .ac-tdb .atc-row{display:flex;align-items:center;gap:3px;margin-top:2px;}
+  .ac-tdb .tdb-atc{width:60px !important;}
+  .ac-tdb .tdb-freq{width:46px !important;}
+  .ac-tdb .tdb-lat,.ac-tdb .tdb-lon{font-size:8.5px;color:var(--text);}
+  /* Airport markers */
+
+  .apt-icon-wrap{position:relative;display:flex;flex-direction:column;align-items:center;pointer-events:none;}
+  .apt-icao-lbl{
+    font-family:var(--mono);font-size:9px;font-weight:900;color:#000;white-space:nowrap;
+    text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 3px #fff;
+    margin-bottom:0;pointer-events:none;line-height:1;
+  }
+  .apt-dot{display:none;}
+  .apt-label{
+    font-family:var(--mono);font-size:9px;font-weight:900;color:#000;
+    white-space:nowrap;pointer-events:none;
+    text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 3px #fff;
+    margin-top:-18px;margin-left:-20px;
+    position:absolute;
+  }
+  .apt-popup input, .apt-popup textarea{
+    width:100%;background:#0d1620;border:1px solid #1c2b35;color:#cfe3ea;
+    font-size:12px;padding:4px 6px;border-radius:3px;margin-bottom:4px;font-family:monospace;
+  }
+  .apt-popup label{font-size:10px;color:#7f97a1;display:block;margin-bottom:1px;}
+  .apt-popup h3{margin:0 0 8px;font-size:13px;color:#5fd4ff;}
+  .apt-popup .save-apt{
+    background:#5fd4ff;color:#06141c;border:none;border-radius:3px;
+    padding:4px 10px;font-size:11px;cursor:pointer;margin-top:2px;
+  }
+
+  /* ---- PCH (Potential Collision Hazard) ---- */
+  /* ===== Para Sites tab ===== */
+  .para-card{background:rgba(0,12,30,.6);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:8px;}
+  .para-card-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .para-badge{width:34px;height:34px;background:#1565c0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--mono);font-weight:700;font-size:11px;flex-shrink:0;border:2px solid rgba(255,255,255,.3);}
+  .para-card-name{font-size:13px;font-weight:600;color:var(--text);}
+  .para-card-info{font-size:10px;color:var(--text-dim);font-family:var(--mono);margin-top:1px;}
+  .para-card-status{margin-left:auto;font-size:10px;font-family:var(--mono);flex-shrink:0;}
+  .ps-warn{color:#5fd4ff;animation:psStatusFlash 0.8s steps(1,end) infinite;}
+  .ps-active{color:#44dd88;}
+  @keyframes psStatusFlash{0%,49%{opacity:1;}50%,100%{opacity:0;}}
+  .para-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;}
+  .para-fields label{font-size:10px;color:var(--text-dim);display:block;margin-bottom:2px;}
+  .para-fields input[type=time]{width:100%;font-size:10px;background:#0a1820;border:1px solid var(--line);color:var(--text);border-radius:3px;padding:3px 5px;font-family:var(--mono);}
+  .para-clear-btn{font-size:10px;padding:3px 10px;}
+  /* Para site map markers */
+  .para-marker-inner{width:20px;height:20px;background:#1565c0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:8px;font-family:monospace;border:1.5px solid rgba(255,255,255,.7);box-shadow:0 0 0 2px rgba(21,101,192,.35);cursor:pointer;}
+  .para-marker-inner.para-flash{animation:paraFlash 0.8s steps(1,end) infinite;}
+  @keyframes paraFlash{0%,49%{opacity:1;}50%,100%{opacity:0;}}
+  .para-marker-inner.hazpara-orange-flash{animation:hazparaMarkerOrange 0.6s steps(1,end) infinite;}
+  @keyframes hazparaMarkerOrange{0%,49%{background:#cc6600;border-color:#ff8800;box-shadow:0 0 0 4px rgba(255,136,0,.5);}50%,100%{background:#1a0800;border-color:#663300;box-shadow:none;}}
+  .para-marker-inner.hazpara-red-flash{animation:hazparaMarkerRed 0.6s steps(1,end) infinite;}
+  @keyframes hazparaMarkerRed{0%,49%{background:#cc0000;border-color:#ff2200;box-shadow:0 0 0 4px rgba(255,34,0,.5);}50%,100%{background:#1a0000;border-color:#660000;box-shadow:none;}}
+  .ac-shape-rot.hazpara-orange-flash{animation:hazparaAcOrange 0.6s steps(1,end) infinite;}
+  @keyframes hazparaAcOrange{0%,49%{filter:drop-shadow(0 0 5px #ff8800);}50%,100%{filter:none;}}
+  .ac-shape-rot.hazpara-red-flash{animation:hazparaAcRed 0.6s steps(1,end) infinite;}
+  @keyframes hazparaAcRed{0%,49%{filter:drop-shadow(0 0 5px #ff2200);}50%,100%{filter:none;}}
+  .hpa-ack-widget{background:rgba(10,20,30,0.93);border:1px solid #ff8800;border-radius:4px;padding:2px 6px 3px;white-space:nowrap;display:inline-block;pointer-events:auto;}
+  .hpa-ack-row{display:flex;align-items:center;gap:5px;margin:1px 0;}
+  .hpa-ack-cs{font-size:9px;color:#ffcc88;font-family:monospace;font-weight:700;}
+  .hpa-ack-btn{font-size:9px;padding:1px 6px;background:#3a1a00;border:1px solid #ff8800;color:#ffaa44;border-radius:2px;cursor:pointer;font-family:monospace;font-weight:700;}
+  .hpa-ack-btn:hover{background:#5a2a00;}
+  /* Para site popup */
+  .para-popup-inner{font-family:var(--mono,monospace);font-size:12px;min-width:160px;}
+  .para-popup-name{font-size:14px;font-weight:700;color:#1565c0;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:4px;}
+  .para-popup-row{display:flex;justify-content:space-between;gap:12px;margin-bottom:3px;}
+  .para-popup-lbl{color:#666;flex-shrink:0;}
+  .para-popup-tel{color:#1565c0;text-decoration:none;font-weight:600;}
+  .para-popup-tel:hover{text-decoration:underline;}
+
+  #pchAlertBox{
+    position:fixed;top:60px;left:50%;transform:translateX(-50%);
+    z-index:9000;display:none;flex-direction:column;gap:4px;align-items:center;
+    pointer-events:none;
+  }
+  .pch-ok-btn{
+    background:#00c853;color:#fff;border:none;border-radius:3px;
+    font-family:var(--mono);font-size:9px;font-weight:700;
+    padding:2px 7px;cursor:pointer;margin-left:8px;flex-shrink:0;
+  }
+  .pch-ok-btn:hover{background:#00e676;}
+  .pch-entry.pch-acked{animation:none;background:rgba(40,20,20,.95);border-color:#555;color:#888;opacity:0.65;cursor:default;pointer-events:none;}
+  #hazBufAlertBox{
+    position:fixed;top:8px;left:50%;transform:translateX(-50%);
+    z-index:9001;display:none;flex-direction:column;gap:4px;
+    pointer-events:none;
+  }
+  .hazbuf-alert-entry{
+    background:rgba(80,0,40,0.95);border:2px solid #ff00aa;border-radius:5px;
+    font-family:var(--mono);font-size:12px;color:#ff88cc;
+    padding:7px 18px;white-space:nowrap;pointer-events:auto;cursor:pointer;
+    animation:hazbufAlertFlash 0.7s steps(1,end) infinite;
+  }
+  @keyframes hazbufAlertFlash{
+    0%,49%{background:rgba(255,0,128,0.88);border-color:#fff;color:#fff;}
+    50%,100%{background:rgba(80,0,40,0.95);border-color:#ff00aa;color:#ff88cc;}
+  }
+  .pch-entry{
+    background:rgba(12,4,4,.96);border:2px solid var(--red);border-radius:5px;
+    font-family:var(--mono);font-size:12px;color:#fff;
+    padding:7px 18px;white-space:nowrap;pointer-events:auto;
+    animation:pchbox 0.6s steps(1,end) infinite;
+  }
+  .pch-time{color:var(--amber);font-weight:700;}
+  @keyframes pchbox{
+    0%,49%{background:rgba(220,30,30,.92);border-color:#fff;color:#fff;}
+    50%,100%{background:rgba(12,4,4,.96);border-color:var(--red);color:#fff;}
+  }
+  /* PCH aircraft shape flash */
+  @keyframes pchshapeflash{
+    0%,49%{filter:drop-shadow(0 0 1.4px #fff) drop-shadow(0 0 6px #fff);}
+    50%,100%{filter:drop-shadow(0 0 1.4px #fff) drop-shadow(0 0 5px rgba(255,93,93,.85));}
+  }
+  .pch-ac-flash svg{
+    color:var(--red) !important;
+    animation:pchshapeflash 0.6s steps(1,end) infinite;
+  }
+  /* PCH TDB flash */
+  @keyframes pchtdbflash{
+    0%,49%{background:#fff !important;color:#000 !important;border-color:#fff !important;}
+    50%,100%{background:rgba(220,30,30,.88) !important;border-color:var(--red) !important;color:#fff !important;}
+  }
+  .pch-tdb-flash{
+    animation:pchtdbflash 0.6s steps(1,end) infinite !important;
+    border-color:var(--red) !important;
+  }
+  @media (prefers-reduced-motion:reduce){
+    .pch-entry{animation:none;background:rgba(220,30,30,.92);}
+    .pch-ac-flash svg{animation:none;color:var(--red) !important;}
+    .pch-tdb-flash{animation:none;background:rgba(220,30,30,.88) !important;}
+  }
+
+  /* ---- Danger area overlays ---- */
+  .da-item{border:1px solid var(--line);border-radius:4px;padding:6px 9px;margin-bottom:6px;background:var(--panel-bg-2);}
+  .da-item .da-id{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--cyan);}
+  .da-item .da-name{font-size:12px;font-weight:600;margin-bottom:2px;}
+  .da-item .da-meta{font-family:var(--mono);font-size:10px;color:var(--text-dim);}
+  .da-item.da-active{border-color:#ff5d5d;background:rgba(255,93,93,.08);}
+  .da-item.da-warn{border-color:var(--amber);background:rgba(255,182,72,.08);}
+  @keyframes da-flash{0%,100%{opacity:1;}50%{opacity:.25;}}
+  .da-item.da-warn .da-id{animation:da-flash 1.2s ease-in-out infinite;color:var(--amber);}
+  /* SVG map hatch fills — !important beats Leaflet's setAttribute("fill",...) */
+  .da-hatch-active{fill:url(#da-hatch-active) !important;fill-opacity:1 !important;}
+  @keyframes da-warn-flash{0%,100%{opacity:1;}50%{opacity:0.18;}}
+  .da-hatch-warn{fill:url(#da-hatch-warn) !important;fill-opacity:1 !important;animation:da-warn-flash 1s ease-in-out infinite;}
+  /* ---- EGD Fixed Danger Area Schedules ---- */
+  .egd-section-hdr{font-size:10px;font-weight:600;color:#7fa8b8;letter-spacing:.06em;text-transform:uppercase;margin:6px 0 4px;}
+  .egd-block{margin-bottom:8px;border:1px solid #1e3a50;border-radius:4px;padding:6px 8px;background:rgba(0,0,20,.35);}
+  .egd-block-hdr{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+  .egd-id{font-size:12px;font-weight:700;font-family:var(--mono,monospace);}
+  .egd-status{font-size:9.5px;font-family:var(--mono,monospace);margin-left:auto;}
+  .egd-status.active{color:#ff4444;}
+  .egd-status.warn{color:#ffaa44;}
+  .egd-table{width:100%;border-collapse:collapse;font-size:9px;}
+  .egd-table th{color:#7fa8b8;font-weight:600;text-align:left;padding:2px 3px;border-bottom:1px solid #1e3a50;}
+  .egd-table td{padding:1px 2px;}
+  .egd-days{font-size:8.5px;color:#7fa8b8;white-space:nowrap;padding-right:4px;font-family:var(--mono,monospace);}
+  .egd-inp{width:100%;background:#050d15;border:1px solid #1e3a50;color:#c8d8e4;border-radius:2px;padding:2px 3px;font-family:var(--mono,monospace);font-size:8.5px;}
+  .egd-inp:focus{outline:1px solid #5fd4ff;border-color:#5fd4ff;}
+  .egd-t{width:42px;}
+  .egd-l{width:52px;}
+  .egd-label{
+    background:rgba(140,0,0,0.78);border:1px solid #ff6666;border-radius:3px;
+    color:#fff;font-family:var(--mono,monospace);font-size:10px;font-weight:700;
+    text-align:center;line-height:16px;cursor:pointer;white-space:nowrap;
+    padding:0 3px;pointer-events:auto;
+  }
+  .egd-label:hover{background:rgba(200,0,0,0.88);}
+
+
+/* ============================ HAZDAM v0.1.8 pending flash fix ============================ */
+.hazdam-panel{
+  border:1px solid var(--line);
+  background:rgba(16,27,39,.55);
+  border-radius:5px;
+  padding:9px 10px;
+  margin-bottom:10px;
+}
+.hazdam-panel h3{
+  margin:0 0 8px;
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.08em;
+  color:var(--text-dim);
+  text-transform:uppercase;
+}
+.hazdam-status-row{
+  width:100%;
+  display:grid;
+  grid-template-columns:58px 1fr 56px;
+  gap:6px;
+  align-items:center;
+  padding:4px 0;
+  border:0;
+  border-bottom:1px solid rgba(28,43,53,.55);
+  background:transparent;
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--text);
+  cursor:pointer;
+  text-align:left;
+}
+.hazdam-status-row:hover{background:rgba(255,255,255,.035);}
+.hazdam-status-row.selected{background:rgba(95,212,255,.08);outline:1px solid rgba(95,212,255,.25);}
+.hazdam-status-row:last-child{border-bottom:none;}
+.hazdam-status-id{color:#ff6b6b;font-weight:700;}
+.hazdam-status-state{color:var(--text-dim);}
+.hazdam-status-state.hazdam-state-pending{color:var(--red);}
+.hazdam-status-state.hazdam-state-active{color:var(--red);}
+.hazdam-status-limits{text-align:right;color:var(--text);font-size:9px;}
+/* HAZDAM D201 map styling - Build 026 */
+.leaflet-overlay-pane svg path.hazdam-aip-area{
+  fill:url(#hazdam-hatch-inactive) !important;
+  fill-opacity:1 !important;
+  stroke:#ff2020 !important;
+  stroke-width:1.8px !important;
+  stroke-opacity:.95 !important;
+  vector-effect:non-scaling-stroke;
+  pointer-events:auto;
+}
+.leaflet-overlay-pane svg path.hazdam-aip-area.hazdam-state-pending{
+  fill:url(#hazdam-hatch-pending) !important;
+  stroke:#ff2020 !important;
+  stroke-width:2.2px !important;
+  stroke-opacity:1 !important;
+  fill-opacity:1 !important;
+  animation:hazdamPendingFlash 1s steps(1,end) infinite;
+}
+@keyframes hazdamPendingFlash{
+  0%,49%{opacity:1;filter:drop-shadow(0 0 5px rgba(255,32,32,.65));}
+  50%,100%{opacity:.24;filter:none;}
+}
+.leaflet-overlay-pane svg path.hazdam-aip-area.hazdam-state-active{
+  fill:url(#hazdam-hatch-active) !important;
+  stroke:#ff2020 !important;
+  stroke-width:2.4px !important;
+  stroke-opacity:1 !important;
+  fill-opacity:1 !important;
+  filter:drop-shadow(0 0 5px rgba(255,32,32,.55));
+}
+.leaflet-overlay-pane svg path.hazdam-aip-area.hazdam-selected-area{
+  stroke-width:3px !important;
+  stroke-opacity:1 !important;
+  filter:drop-shadow(0 0 6px rgba(95,212,255,.35));
+}
+.hazdam-label{
+  font-family:var(--mono);
+  color:rgba(180,0,0,.78);
+  font-weight:800;
+  font-size:8px;
+  line-height:1.02;
+  text-align:center;
+  text-shadow:0 0 2px rgba(255,255,255,.9),0 0 3px rgba(255,255,255,.7);
+  white-space:nowrap;
+  cursor:pointer;
+  user-select:none;
+}
+.hazdam-label.hazdam-state-pending{color:rgba(210,0,0,.95);}
+.hazdam-label.hazdam-state-active{color:rgba(210,0,0,.95);}
+.hazdam-label.hazdam-label-selected{text-decoration:underline;text-underline-offset:2px;}
+.hazdam-label .hazdam-label-id{font-size:8px;}
+.hazdam-label .hazdam-label-limits{font-size:7px;text-decoration:underline;}
+#map.hazdam-z-far .hazdam-label{font-size:5.5px;line-height:1;opacity:.62;}
+#map.hazdam-z-far .hazdam-label .hazdam-label-id{font-size:5.5px;}
+#map.hazdam-z-far .hazdam-label .hazdam-label-limits{font-size:5px;}
+#map.hazdam-z-mid .hazdam-label{font-size:7px;line-height:1.02;opacity:.76;}
+#map.hazdam-z-mid .hazdam-label .hazdam-label-id{font-size:7px;}
+#map.hazdam-z-mid .hazdam-label .hazdam-label-limits{font-size:6px;}
+#map.hazdam-z-close .hazdam-label{font-size:10px;line-height:1.02;opacity:.9;}
+#map.hazdam-z-close .hazdam-label .hazdam-label-id{font-size:10px;}
+#map.hazdam-z-close .hazdam-label .hazdam-label-limits{font-size:9px;}
+.hazdam-detail{font-family:var(--mono);}
+.hazdam-detail-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-bottom:1px solid rgba(28,43,53,.75);padding-bottom:8px;margin-bottom:8px;}
+.hazdam-detail-id{font-size:18px;font-weight:800;color:#ff6666;letter-spacing:.04em;}
+.hazdam-detail-name{font-size:10px;color:var(--text-dim);margin-top:2px;}
+.hazdam-state-pill{font-size:10px;font-weight:800;border:1px solid rgba(255,32,32,.45);color:#ff7777;border-radius:3px;padding:3px 6px;white-space:nowrap;}
+.hazdam-state-pill.hazdam-state-pending{border-color:rgba(255,32,32,.9);color:var(--red);}
+.hazdam-state-pill.hazdam-state-active{border-color:rgba(255,32,32,.9);color:var(--red);box-shadow:0 0 5px rgba(255,32,32,.25);}
+.hazdam-detail-grid{display:grid;grid-template-columns:92px 1fr;gap:4px 8px;font-size:10.5px;align-items:baseline;}
+.hazdam-detail-grid span,.hazdam-notes span,.hazdam-official span{color:var(--text-dim);}
+.hazdam-detail-grid b{color:var(--text);font-weight:700;text-align:right;}
+.hazdam-notes{margin:10px 0;border-top:1px solid rgba(28,43,53,.55);padding-top:8px;font-size:10.5px;}
+.hazdam-notes p{margin:4px 0 0;color:var(--text);line-height:1.4;white-space:pre-wrap;font-family:var(--sans);font-size:12px;}
+.hazdam-official{display:flex;justify-content:space-between;gap:10px;border-top:1px solid rgba(28,43,53,.55);padding-top:7px;margin:8px 0 10px;font-size:10px;}
+.hazdam-edit-form{margin-top:10px;border-top:1px solid rgba(95,212,255,.25);padding-top:10px;}
+.hazdam-edit-form label{font-size:10px;}
+.hazdam-edit-form input,.hazdam-edit-form select,.hazdam-edit-form textarea{font-family:var(--mono);font-size:11px;}
+.hazdam-popup{font-family:var(--mono);font-size:11px;min-width:190px;}
+.hazdam-popup h3{margin:0 0 6px;color:#ff4444;font-family:var(--mono);font-size:14px;}
+.hazdam-popup .row{display:flex;justify-content:space-between;gap:12px;margin:3px 0;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:2px;}
+.hazdam-popup .lbl{color:var(--text-dim);}
+.hazdam-popup .val{color:var(--text);text-align:right;}
+.hazdam-popup .note{margin-top:6px;color:var(--text-dim);line-height:1.35;white-space:normal;}
+
+.hazdam-conflict-row{
+  border:1px solid rgba(255,32,32,.45);
+  background:rgba(255,32,32,.065);
+  border-radius:4px;
+  padding:6px 7px;
+  margin-bottom:6px;
+  font-family:var(--mono);
+  cursor:pointer;
+}
+.hazdam-conflict-row:hover{border-color:rgba(255,32,32,.85);background:rgba(255,32,32,.1);}
+.hazdam-conflict-top,.hazdam-conflict-main{display:flex;justify-content:space-between;gap:8px;align-items:baseline;}
+.hazdam-conflict-top b{color:var(--green);font-size:10.5px;}
+.hazdam-conflict-top span{color:var(--text-dim);font-size:10px;}
+.hazdam-conflict-main{margin-top:3px;}
+.hazdam-conflict-main span{color:#ff7777;font-weight:800;font-size:12px;}
+.hazdam-conflict-main b{color:var(--red);font-size:12px;}
+.hazdam-conflict-meta{margin-top:3px;color:var(--text-dim);font-size:9.5px;}
+
+/* HAZDAM info popup */
+.hazdam-info-popup .leaflet-popup-content-wrapper{
+  background:#0d1620;
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:6px;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+.hazdam-info-popup .leaflet-popup-tip{background:#0d1620;border:1px solid var(--line);}
+.hazdam-popup{font-family:var(--mono);font-size:11px;line-height:1.35;min-width:260px;max-width:340px;}
+.hazdam-popup h3{margin:0 0 8px;color:#ff5d5d;font-size:14px;font-family:var(--mono);}
+.hazdam-popup h3 span{color:var(--text-dim);font-size:10px;margin-left:5px;font-weight:500;}
+.hazdam-popup-grid{display:grid;grid-template-columns:1fr auto;gap:4px 12px;border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);padding:7px 0;margin-bottom:7px;}
+.hazdam-popup-grid span{color:var(--text-dim);}
+.hazdam-popup-grid b{text-align:right;color:var(--text);}
+.hazdam-popup-grid b.hazdam-state-active{color:#ff5d5d;}
+.hazdam-popup-grid b.hazdam-state-pending{color:#ff5d5d;}
+.hazdam-popup-grid b.hazdam-state-inactive{color:var(--text-dim);}
+.hazdam-popup-section{border-bottom:1px solid var(--line-soft);padding:6px 0;}
+.hazdam-popup-section:last-child{border-bottom:none;padding-bottom:0;}
+.hazdam-popup-section b{display:block;color:var(--cyan);margin-bottom:4px;}
+.hazdam-popup-section p{margin:2px 0;color:var(--text);white-space:normal;}
+
+
+/* ---------- HAZDAM operational alert + DEV test mode ---------- */
+.hazdam-dev-test-panel{
+  border:1px solid rgba(255,182,72,.35);
+  background:rgba(255,182,72,.07);
+  border-radius:6px;
+  padding:8px;
+  margin:0 0 10px;
+}
+.hazdam-dev-test-title{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--amber);
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:6px;
+}
+.hazdam-dev-test-buttons{display:flex;gap:5px;flex-wrap:wrap;}
+.hazdam-dev-test-buttons .btn{font-size:10px;padding:4px 6px;}
+@keyframes hazdamAlertFlash{
+  0%,49%{border-color:#ff2020;box-shadow:0 0 10px rgba(255,32,32,.8);background:rgba(255,32,32,.22);}
+  50%,100%{border-color:#360000;box-shadow:none;background:rgba(30,0,0,.12);}
+}
+.hazdam-conflict-row.hazdam-conflict-alert,
+.strip-card.hazdam-strip-alert{
+  animation:hazdamAlertFlash .8s steps(1,end) infinite;
+}
+.hazdam-conflict-row.hazdam-conflict-acked{opacity:.72;border-color:rgba(80,130,80,.45);}
+.hazdam-acked{font-family:var(--mono);font-size:10px;color:var(--green);font-weight:700;}
+.hazdam-conflict-actions{margin-top:5px;text-align:right;}
+.hazdam-ack-btn{font-size:10px;padding:3px 8px;}
+.ac-shape-rot.hazdam-aircraft-alert svg{color:#ff2020 !important;filter:drop-shadow(0 0 1.4px #fff) drop-shadow(0 0 8px #ff2020) !important;}
+.ac-shape-rot.hazdam-aircraft-alert{animation:hazdamAircraftFlash .7s steps(1,end) infinite;}
+@keyframes hazdamAircraftFlash{0%,49%{opacity:1;}50%,100%{opacity:.18;}}
+.tdb-hazdam-row{margin-top:3px;border-top:1px solid rgba(255,32,32,.35);padding-top:3px;color:#ffaaaa;}
+.tdb-hazdam-row b{color:#ff6666;}
+.sc-hazdam-warning{background:rgba(255,32,32,.12);border-top:1px solid #ff2200;color:#ffaaaa;margin-top:2px;}
+.hazdam-dev-aircraft-icon{background:transparent;border:none;}
+.hazdam-dev-aircraft{font-family:var(--mono);font-size:9px;color:#fff;text-align:center;line-height:1.15;filter:drop-shadow(0 0 4px #000);}
+.hazdam-dev-aircraft>div{font-size:20px;color:#ff2020;}
+.hazdam-dev-aircraft span{display:block;background:rgba(8,17,26,.88);border:1px solid rgba(255,32,32,.6);border-radius:3px;padding:2px 4px;white-space:nowrap;}
+.hazdam-dev-aircraft.hazdam-dev-aircraft-alert{animation:hazdamAircraftFlash .7s steps(1,end) infinite;}
+@media (prefers-reduced-motion: reduce){
+  .hazdam-conflict-row.hazdam-conflict-alert,
+  .strip-card.hazdam-strip-alert,
+  .ac-tdb.tdb-hazdam-alert,
+  .ac-shape-rot.hazdam-aircraft-alert,
+  .hazdam-dev-aircraft.hazdam-dev-aircraft-alert{animation:none;}
+}
+
+/* Release 031 - HAZDAM prediction/operational alert refinements */
+.hazdam-conflict-row.hazdam-conflict-predicted{
+  border-color:var(--amber) !important;
+  background:rgba(255,182,72,.08) !important;
+}
+.hazdam-conflict-row.hazdam-conflict-predicted .hazdam-conflict-main b{
+  color:var(--amber) !important;
+}
+.hazdam-conflict-actions{
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+  margin-top:6px;
+}
+
+/* ---------- HAZDAM Release 032: conflict vectors and scenario lab ---------- */
+.hazdam-conflict-vector{
+  animation:hazdamVectorPulse .8s steps(1,end) infinite;
+  pointer-events:none;
+}
+.hazdam-conflict-boundary-dot{
+  animation:hazdamBoundaryPulse .8s steps(1,end) infinite;
+  pointer-events:none;
+}
+@keyframes hazdamVectorPulse{
+  0%,49%{opacity:1;}
+  50%,100%{opacity:.28;}
+}
+@keyframes hazdamBoundaryPulse{
+  0%,49%{opacity:1;stroke-width:2;}
+  50%,100%{opacity:.35;stroke-width:1;}
+}
+.hazdam-dev-test-select{
+  display:grid;
+  grid-template-columns:62px 1fr;
+  gap:6px;
+  align-items:center;
+  margin:5px 0 7px;
+}
+.hazdam-dev-test-select label{
+  font-family:var(--mono);
+  color:var(--text-dim);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.hazdam-dev-test-select select{
+  padding:4px 6px;
+  font-size:11px;
+  font-family:var(--mono);
+}
+@media (prefers-reduced-motion: reduce){
+  .hazdam-conflict-vector,.hazdam-conflict-boundary-dot{animation:none;}
+}
+
+/* Release 035 - HAZDAM Test Lab rebuild */
+.hazdam-test-lab .hazdam-test-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px 8px;
+  margin:6px 0 8px;
+}
+.hazdam-test-lab .field{margin-bottom:0;}
+.hazdam-test-lab label{
+  font-family:var(--mono);
+  color:var(--text-dim);
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.hazdam-test-lab select,
+.hazdam-test-lab input{
+  padding:4px 6px;
+  font-size:11px;
+  font-family:var(--mono);
+}
+.hazdam-test-lab .hazdam-dev-test-buttons{margin-top:6px;}
+
+/* Release 036 - HAZDAM vertical conflict information */
+.hazdam-conflict-vertical{
+  margin-top:3px;
+  font-family:var(--mono);
+  font-size:10px;
+  color:#9fe8ff;
+}
+
+
+/* Release 040 - Operational TDB polish and HAZDAM wording flash */
+.ac-tdb{
+  background:rgba(0,0,0,0.97) !important;
+  border-color:#24313a;
+  box-shadow:0 0 4px rgba(0,0,0,0.85);
+}
+.ac-tdb.tdb-custom-hl{
+  background:rgba(0,0,0,0.97) !important;
+}
+.ac-tdb.tdb-hazdam-alert{
+  background:rgba(0,0,0,0.98) !important;
+  border-color:#ff2020 !important;
+  box-shadow:0 0 6px rgba(255,32,32,.55) !important;
+  animation:none !important;
+}
+.tdb-hazdam-row{
+  margin-top:3px;
+  border-top:1px solid rgba(255,32,32,.35);
+  padding-top:3px;
+  color:#ffffff;
+}
+.tdb-hazdam-title{
+  color:#ffffff;
+  font-family:var(--mono);
+  font-size:9.5px;
+  font-weight:700;
+  letter-spacing:.02em;
+  animation:hazdamTdbWordsFlash .75s steps(1,end) infinite;
+}
+.tdb-hazdam-detail{
+  color:#ffffff;
+  font-family:var(--mono);
+  font-size:9.5px;
+}
+@keyframes hazdamTdbWordsFlash{
+  0%,49%{color:#ff2020;}
+  50%,100%{color:#ffffff;}
+}
+@media (prefers-reduced-motion: reduce){
+  .tdb-hazdam-title{animation:none;color:#ff2020;}
+}
+
+/* Release 042 ACK behaviour fixes */
+#pchAlertBox{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:9000;display:none;flex-direction:column;gap:4px;align-items:center;pointer-events:auto;}
+.pch-close-btn{position:absolute;top:-9px;right:-9px;width:20px;height:20px;border-radius:50%;border:1px solid #ff7777;background:#120608;color:#ffaaaa;font-family:var(--mono);font-size:15px;font-weight:700;line-height:16px;cursor:pointer;z-index:2;}
+.pch-close-btn:hover{background:#7f1d1d;color:#fff;}
+.pch-entry.pch-acked{animation:none!important;background:rgba(12,4,4,.96)!important;border-color:#666!important;color:#ddd!important;opacity:1!important;pointer-events:auto!important;}
+.pch-acked-label{display:inline-block;margin-left:8px;background:#064e1f;color:#66ff99;border:1px solid #19b45b;border-radius:3px;font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 7px;}
+
+/* Release 042 PCH button reliability + centred close button */
+#pchAlertBox{
+  pointer-events:auto!important;
+  align-items:stretch!important;
+  min-width:min(96vw, 1180px);
+}
+#pchAlertBox .pch-entry{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 60px 8px 18px!important;
+  min-height:38px;
+  box-sizing:border-box;
+  pointer-events:auto!important;
+}
+#pchAlertBox .pch-ok-btn{
+  pointer-events:auto!important;
+  cursor:pointer!important;
+  min-width:42px;
+  height:26px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:5px;
+  font-size:12px!important;
+}
+#pchAlertBox .pch-close-btn{
+  position:absolute!important;
+  top:50%!important;
+  right:10px!important;
+  transform:translateY(-50%)!important;
+  width:28px!important;
+  height:28px!important;
+  border-radius:50%!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  line-height:1!important;
+  padding:0!important;
+  font-size:22px!important;
+  font-weight:800!important;
+  pointer-events:auto!important;
+  cursor:pointer!important;
+}
+
+/* Release 043 stabilisation: PARA manual override segmented controls */
+.para-mode-row{
+  display:flex;
+  gap:4px;
+  margin:7px 0 4px;
+  flex-wrap:wrap;
+}
+.para-mode-row .para-mode-btn{
+  flex:1 1 0;
+  min-width:68px;
+  padding:4px 6px;
+  font-size:10px;
+  font-family:var(--mono);
+  border-color:#23445c;
+  background:#081622;
+  color:#8fb4c5;
+}
+.para-mode-row .para-mode-btn.active{
+  color:#fff;
+  border-color:#5fd4ff;
+  box-shadow:0 0 0 1px rgba(95,212,255,.32) inset;
+}
+.para-mode-row .para-mode-btn[data-mode="AUTO"].active{background:#0b3147;}
+.para-mode-row .para-mode-btn[data-mode="ACTIVE"].active{background:#064e1f;border-color:#44dd88;}
+.para-mode-row .para-mode-btn[data-mode="NOT_ACTIVE"].active{background:#2b3036;border-color:#8996a3;color:#d5dde5;}
+.ps-manual-active{color:#44dd88;font-weight:700;}
+.ps-manual-off{color:#c8d8e4;font-weight:700;}
+.ps-auto-off{color:#6f8794;}
+
+/* Release 043 - HAZDAM managed-area edit controls */
+.hazdam-status-row{
+  grid-template-columns:58px 50px 82px 82px 76px 1fr !important;
+  gap:7px !important;
+  padding:7px 4px !important;
+  border:1px solid rgba(49,86,104,.35) !important;
+  border-radius:3px;
+  margin-bottom:4px;
+}
+.hazdam-status-edit{
+  background:#000;
+  border:0;
+  border-radius:0;
+  color:#5fc64b;
+  font-family:var(--mono);
+  font-weight:800;
+  font-size:11px;
+  padding:3px 6px;
+  cursor:pointer;
+  line-height:1.1;
+}
+.hazdam-status-edit:hover{background:#061018;color:#7cff66;outline:1px solid rgba(95,212,255,.35);}
+.hazdam-status-time{color:var(--text-dim);font-size:9.5px;white-space:nowrap;}
+.hazdam-status-time.active-time{color:#66b544;font-weight:800;}
+.hazdam-detail-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+.hazdam-inline-edit{padding:5px 10px;font-size:10px;border-color:#1e92c4;color:var(--cyan);}
+.hazdam-level-edit{display:grid;grid-template-columns:76px 1fr;gap:7px;align-items:center;}
+.hazdam-level-edit select,
+.hazdam-level-edit input{width:100%;}
+@media (max-width:760px){
+  .hazdam-status-row{grid-template-columns:50px 48px 75px 75px 70px 1fr !important;font-size:9px;gap:5px !important;}
+  .hazdam-status-time{font-size:8.5px;}
+  .hazdam-status-edit{font-size:10px;padding:3px 5px;}
+}
+
+/* Release 044: operator-first startup, compact admin access, side collapse handles */
+/* Login overlay is controlled by ffapp-auth.js. */
+.admin-access{position:relative;flex:0 0 auto;}
+.admin-access-toggle{
+  background:#08121b;border:1px solid #294152;color:var(--text-dim);
+  border-radius:4px;padding:5px 8px;font-family:var(--mono);font-size:10px;
+  letter-spacing:.05em;cursor:pointer;white-space:nowrap;line-height:1;
+}
+.admin-access-toggle:hover{color:var(--text);border-color:var(--cyan);}
+.admin-access-toggle.admin-on{color:var(--green);border-color:var(--green-dim);}
+.admin-access-popover{
+  position:absolute;top:calc(100% + 8px);left:0;width:230px;z-index:1200;
+  background:#0b1520;border:1px solid #294152;border-radius:7px;
+  padding:9px;box-shadow:0 12px 30px rgba(0,0,0,.45);
+}
+.admin-access-title{
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--cyan);
+  margin-bottom:7px;text-transform:uppercase;font-weight:700;
+}
+.admin-access input{
+  width:100%;background:#101b27;border:1px solid #294152;color:var(--text);
+  border-radius:4px;padding:6px 7px;font-family:var(--mono);font-size:11px;margin-bottom:7px;
+}
+.admin-access-actions{display:flex;gap:6px;justify-content:flex-end;align-items:center;}
+.admin-access-actions .btn{padding:5px 8px;font-size:10px;line-height:1.1;}
+.admin-access-error{margin:6px 0 0;color:var(--red);font-size:10px;min-height:12px;}
+.entertainment-banner{
+  color:#ff4444;font-family:var(--mono);font-size:9px;font-weight:700;
+  letter-spacing:.05em;white-space:nowrap;padding:2px 6px;border:1px solid #ff4444;
+  border-radius:3px;flex-shrink:1;max-width:155px;overflow:hidden;text-overflow:ellipsis;
+}
+main.strips-collapsed #stripsPanel:not(.mob-strips){flex-basis:0 !important;width:0 !important;min-width:0 !important;border-right:0 !important;overflow:hidden !important;}
+main.info-collapsed #side{flex-basis:0 !important;width:0 !important;min-width:0 !important;border-left:0 !important;overflow:hidden !important;}
+.side-collapse-handle{
+  position:absolute;top:50%;transform:translateY(-50%);z-index:760;
+  width:22px;min-height:92px;border:1px solid #294152;background:#0b1520;color:var(--cyan);
+  border-radius:0 7px 7px 0;font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:.06em;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;padding:5px 0;
+  box-shadow:0 0 14px rgba(0,0,0,.35);opacity:.95;
+}
+.side-collapse-handle span{writing-mode:vertical-rl;text-orientation:mixed;line-height:1;}
+.side-collapse-handle:hover{background:#102133;color:#fff;border-color:var(--cyan);}
+.strips-handle{left:var(--strips-width);}
+.info-handle{right:500px;border-radius:7px 0 0 7px;}
+main.strips-collapsed .strips-handle{left:0;}
+main.info-collapsed .info-handle{right:0;}
+@media (max-width:880px){
+  header{gap:7px;padding:7px 8px;flex-wrap:wrap;}
+  header .brand{gap:6px;}
+  header h1{font-size:12px;}
+  .admin-access-toggle{font-size:9px;padding:5px 6px;}
+  .admin-access-popover{width:215px;}
+  .entertainment-banner{font-size:8px;max-width:118px;padding:2px 4px;}
+  .strips-handle{left:0;top:48%;}
+  .info-handle{right:0;top:48%;}
+  .side-collapse-handle{min-height:78px;width:20px;font-size:8px;z-index:900;}
+}
+
+/* Release 044.1: protect main navigation while NOTAM Plotting scrolls */
+#side .tabs{
+  position:sticky;
+  top:0;
+  z-index:80;
+  background:var(--panel-bg);
+}
+#tab-notams{
+  scroll-behavior:auto;
+  overflow-y:auto;
+}
+#notamWorkspaceSubnav{
+  position:sticky !important;
+  top:0 !important;
+  z-index:70 !important;
+}
+
+
+/* Release 047 — Push alerts */
+.push-status{font-family:var(--mono);font-size:10px;color:var(--text-dim);white-space:nowrap;}
+.push-status.ok{color:var(--green);}
+.push-status.err{color:var(--red);}
+#pushEnableBtn.push-enabled{border-color:var(--green);color:var(--green);}
+
+/* Release 051: personal operational queue */
+.ffapp-update-info{
+  font-family:var(--mono);
+  font-size:9px;
+  line-height:1.05;
+  color:var(--text-dim);
+  white-space:nowrap;
+  opacity:.85;
+  margin-right:2px;
+}
+.ffapp-opq-strip{
+  position:fixed;
+  top:42px;
+  left:0;
+  right:0;
+  z-index:950;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  background:rgba(3,10,15,.94);
+  border-bottom:1px solid rgba(95,212,255,.24);
+  box-shadow:0 2px 10px rgba(0,0,0,.35);
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--text);
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.ffapp-opq-title{color:var(--cyan);font-weight:700;white-space:nowrap;margin-right:3px;}
+.ffapp-opq-pill{
+  border:1px solid rgba(95,212,255,.24);
+  background:#08131c;
+  color:#d9f6ff;
+  border-radius:999px;
+  padding:3px 7px;
+  font-family:var(--mono);
+  font-size:10px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.ffapp-opq-pill.has-alerts{border-color:#ffb648;color:#fff;background:#1b1206;}
+.ffapp-opq-pill.high{border-color:#ff5d5d;background:#1c0808;animation:ffapp-opq-pulse 1.1s infinite;}
+.ffapp-opq-status{margin-left:auto;color:var(--text-dim);white-space:nowrap;font-size:9px;}
+.ffapp-opq-panel{
+  position:fixed;
+  top:72px;
+  right:8px;
+  width:min(360px,calc(100vw - 16px));
+  max-height:calc(100vh - 90px);
+  z-index:1000;
+  background:rgba(5,13,19,.98);
+  border:1px solid rgba(95,212,255,.32);
+  border-radius:8px;
+  box-shadow:0 10px 35px rgba(0,0,0,.55);
+  color:var(--text);
+  font-family:var(--mono);
+  overflow:hidden;
+}
+.ffapp-opq-panel[hidden]{display:none;}
+.ffapp-opq-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(95,212,255,.16);font-weight:700;color:var(--cyan);}
+.ffapp-opq-close{background:#101c25;border:1px solid #29485b;color:#fff;border-radius:4px;font-size:14px;line-height:1;padding:3px 7px;cursor:pointer;}
+.ffapp-opq-list{padding:8px;display:flex;flex-direction:column;gap:7px;overflow:auto;max-height:calc(100vh - 145px);}
+.ffapp-opq-empty{color:var(--text-dim);font-size:11px;padding:10px;text-align:center;}
+.ffapp-opq-card{border:1px solid rgba(255,182,72,.34);background:#071019;border-radius:7px;padding:8px;}
+.ffapp-opq-card.priority{border-color:#ff5d5d;box-shadow:0 0 0 1px rgba(255,93,93,.15) inset;}
+.ffapp-opq-card-title{font-size:12px;font-weight:700;margin-bottom:5px;color:#fff;}
+.ffapp-opq-card-lines{font-size:10px;line-height:1.35;color:#d7edf5;white-space:pre-wrap;margin-bottom:7px;}
+.ffapp-opq-card-meta{font-size:9px;color:var(--text-dim);margin-bottom:7px;}
+.ffapp-opq-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.ffapp-opq-actions button{font-family:var(--mono);font-size:10px;border-radius:4px;border:1px solid #2d5568;background:#0b1b26;color:#fff;padding:5px 7px;cursor:pointer;}
+.ffapp-opq-actions button.complete{border-color:#236b43;background:#0b2216;color:#b7ffd2;}
+.ffapp-opq-actions button.locate{border-color:#255f7a;color:#bfefff;}
+@keyframes ffapp-opq-pulse{0%,100%{box-shadow:0 0 0 rgba(255,93,93,0)}50%{box-shadow:0 0 8px rgba(255,93,93,.8)}}
+@media(max-width:880px){
+  .ffapp-update-info{font-size:8px;}
+  .ffapp-opq-strip{top:38px;font-size:9px;padding:3px 6px;}
+  .ffapp-opq-pill{font-size:9px;padding:3px 6px;}
+  .ffapp-opq-panel{top:66px;right:6px;width:calc(100vw - 12px);}
+}
+
+/* ===== Multi-point NOTAM plotting ===== */
+.haz-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+.haz-mode-row .mode-lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+.haz-mode-row .mode-lbl.active { color: var(--cyan); }
+.haz-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--cyan);
+  background: #0a0f14;
+  cursor: pointer;
+  padding: 0;
+}
+.haz-switch::after {
+  content: "S";
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--cyan);
+  color: #04141c;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  transition: left 0.15s ease;
+}
+.haz-switch[aria-pressed="true"]::after { content: "M"; left: 25px; }
+.haz-pt-row {
+  display: grid;
+  grid-template-columns: 16px 1fr 1fr 36px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.haz-pt-row.haz-pt-head {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.haz-pt-row .idx {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+}
+.haz-pt-row input[type="text"],
+.haz-pt-row input[type="time"] {
+  width: 100%;
+  min-width: 0;
+}
+.haz-pt-row input[type="checkbox"] {
+  justify-self: center;
+  accent-color: var(--cyan);
+}
+
+
+/* Release 079 — wider INFO panel and clearer NOTAM Plotting sub-tabs */
+#side{
+  width:500px !important;
+  flex:0 0 500px !important;
+}
+.info-handle{right:500px !important;}
+main.info-collapsed .info-handle{right:0 !important;}
+#side .tabs{
+  display:grid !important;
+  grid-template-columns:repeat(5, minmax(70px, 1fr));
+  gap:0;
+  align-items:stretch;
+  overflow:visible;
+}
+#side .tabs button{
+  min-height:32px;
+  font-size:10px;
+  padding:7px 6px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#side .tabs button[data-tab="notams"]{
+  font-size:11px;
+  color:var(--text);
+}
+#tab-notams{
+  padding-top:0 !important;
+}
+#notamWorkspaceSubnav{
+  order:-10;
+  display:grid !important;
+  grid-template-columns:repeat(3, minmax(0,1fr));
+  gap:10px !important;
+  position:sticky !important;
+  top:0 !important;
+  z-index:120 !important;
+  background:#08131d !important;
+  padding:12px 0 12px !important;
+  margin:0 0 12px !important;
+  border-bottom:1px solid var(--line) !important;
+}
+#notamWorkspaceSubnav .btn{
+  min-height:42px;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.02em;
+  white-space:normal;
+}
+.notam-workspace-panel, .notam-workspace-embedded{
+  min-width:0;
+}
+.hazdam-list-item, .danger-item, #dangerList .item, #dangerList div{
+  overflow-wrap:anywhere;
+}
+@media (max-width:1100px){
+  #side{width:520px !important;flex-basis:430px !important;}
+  .info-handle{right:430px !important;}
+  main.info-collapsed .info-handle{right:0 !important;}
+  #side .tabs{grid-template-columns:repeat(3, minmax(70px, 1fr));}
+}
+
+.ff-phone-link{color:#5fd4ff;font-weight:800;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+.ff-phone-link:hover{color:#9af0ff;}
+.ff-phone-sep{color:#7fa8b8;opacity:.85;}
+.phone-list{display:inline-flex;flex-wrap:wrap;gap:2px 4px;justify-content:flex-end;align-items:center;}
+
+
+/* Release 085: remove top hazard alert banners and keep map hazard items above ICAO labels */
+#pchAlertBox,#hazBufAlertBox{display:none !important;visibility:hidden !important;pointer-events:none !important;}
+.leaflet-marker-icon .hazard-pin,.leaflet-marker-icon .notam-pin{z-index:9999;position:relative;}
+
+/* Release 062 — clearer top banner and automatic NOTAM activity reference */
+header{
+  background:linear-gradient(180deg,#081018,#050b11) !important;
+  border-bottom:1px solid #294152 !important;
+  box-shadow:0 2px 10px rgba(0,0,0,.38);
+}
+header .search-box input{
+  background:#0e1c29 !important;
+  border-color:#3b5c72 !important;
+  color:#f2fbff !important;
+  box-shadow:inset 0 0 0 1px rgba(95,212,255,.06);
+}
+header .search-box input::placeholder{
+  color:#b7cad4 !important;
+  opacity:.88 !important;
+}
+header .search-box input:focus{
+  border-color:var(--cyan) !important;
+  box-shadow:0 0 0 2px rgba(95,212,255,.18), inset 0 0 0 1px rgba(95,212,255,.12);
+}
+.admin-access-toggle{
+  background:#06151e !important;
+  border-color:#33bdf2 !important;
+  color:#76e6ff !important;
+  box-shadow:0 0 0 1px rgba(95,212,255,.12), 0 0 8px rgba(95,212,255,.12);
+}
+.admin-access-toggle.admin-on{
+  color:#76ff98 !important;
+  border-color:#34d35d !important;
+}
+#side .tabs{
+  padding-top:8px !important;
+  border-top:1px solid rgba(95,212,255,.16) !important;
+}
+#hazRef[readonly]{
+  background:#0d2130 !important;
+  border-color:#2a83aa !important;
+  color:#e8fbff !important;
+  font-weight:700;
+  cursor:default;
+}
+#hazRef[readonly]:focus{
+  outline:2px solid rgba(95,212,255,.75);
+  outline-offset:1px;
+}
+
+
+
+/* Release069: NOTAM plotting SAR OPS / radius controls */
+.haz-pick-row{align-items:flex-end;gap:10px;flex-wrap:wrap;}
+.haz-radius-field label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;}
+.haz-radius-field select{height:32px;}
+
+/* Release 072: right-click edit/delete menu and edit target outline */
+.ff-context-menu{
+  position:fixed;
+  z-index:20000;
+  min-width:150px;
+  padding:4px;
+  border:1px solid rgba(165,177,190,.55);
+  border-radius:8px;
+  background:rgba(8,19,29,.98);
+  box-shadow:0 10px 28px rgba(0,0,0,.45);
+}
+.ff-context-menu button{
+  display:block;
+  width:100%;
+  padding:8px 10px;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:#d9e9f3;
+  font-family:var(--mono);
+  font-size:12px;
+  text-align:left;
+  cursor:pointer;
+}
+.ff-context-menu button:hover{background:rgba(95,212,255,.14);}
+.ff-context-menu button.danger{color:#ff7b7b;}
+.ff-context-menu button.danger:hover{background:rgba(255,80,80,.16);}
+.ff-edit-focus{
+  border:1px solid rgba(180,190,200,.95) !important;
+  box-shadow:0 0 0 1px rgba(180,190,200,.25), 0 0 14px rgba(180,190,200,.18) !important;
+}
+
+/* Release 091 — tiny coordinate labels at each multi-point NOTAM vertex */
+.haz-vertex-label-icon{pointer-events:none !important;background:transparent !important;border:0 !important;}
+.haz-vertex-label{
+  font-family:var(--mono);
+  font-size:7px;
+  line-height:1.05;
+  font-weight:800;
+  color:#061018;
+  text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 2px #fff;
+  white-space:nowrap;
+  opacity:.9;
+}
+.haz-vertex-label b{color:#ff3030;}
+
+/* Release100: single ACTIVE PIB status card */
+.active-pib-card{
+  margin:14px 0 10px 0;
+  padding:12px 14px;
+  border:1px solid rgba(94,215,255,.28);
+  border-radius:12px;
+  background:rgba(22,36,47,.72);
+}
+.active-pib-card .hint{margin:0;white-space:pre-line;}
+.active-pib-card.current{border-color:rgba(35,255,132,.55);box-shadow:0 0 0 1px rgba(35,255,132,.1) inset;}
+.active-pib-card.outdated{border-color:rgba(255,170,51,.65);box-shadow:0 0 0 1px rgba(255,170,51,.12) inset;}
+.active-pib-card.empty{border-color:rgba(255,77,91,.45);}
+
+/* Release106: managed Danger Area delete control */
+.hazdam-status-delete{background:transparent;border:1px solid #ff5f68;color:#ff7b82;border-radius:4px;font-weight:900;font-size:15px;line-height:18px;width:24px;height:24px;padding:0;cursor:pointer;margin-left:4px}
+.hazdam-status-delete:hover{background:#4a1117;color:#fff}
+
+/* Release116: clear visual save state */
+#hazAdd:disabled{opacity:.42;filter:saturate(.45);cursor:not-allowed;box-shadow:none;}
+#hazAdd.haz-save-ready:not(:disabled){background:#39ff88;color:#03150b;border-color:#8affb5;box-shadow:0 0 0 2px rgba(57,255,136,.24),0 0 15px rgba(57,255,136,.48);font-weight:900;}
+#hazAdd.haz-save-ready:not(:disabled):hover{filter:brightness(1.1);}
+
+/* Secure user authentication and administration */
+.ffauth-overlay{position:fixed;inset:0;z-index:200000;background:radial-gradient(circle at 20% 25%,#0b3444 0,transparent 36%),linear-gradient(145deg,#02070b,#07141c);display:flex;align-items:center;justify-content:center;padding:22px;color:#e7f3f7}
+.ffauth-overlay:before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(96,220,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(96,220,255,.05) 1px,transparent 1px);background-size:42px 42px}
+.ffauth-radar-bg{position:absolute;width:min(72vw,650px);aspect-ratio:1;border:1px solid rgba(96,220,255,.22);border-radius:50%;left:-10vw;top:4vh}.ffauth-radar-bg:before,.ffauth-radar-bg:after{content:"";position:absolute;border:1px solid rgba(96,220,255,.14);border-radius:50%}.ffauth-radar-bg:before{inset:17%}.ffauth-radar-bg:after{inset:34%}.ffauth-radar-bg span{position:absolute;left:50%;top:50%;width:48%;height:2px;transform-origin:left;background:linear-gradient(90deg,#57f49a,transparent);animation:ffauthSweep 5s linear infinite}.ffauth-radar-bg i,.ffauth-radar-bg b{position:absolute;width:6px;height:6px;border-radius:50%;background:#57f49a;box-shadow:0 0 12px #57f49a}.ffauth-radar-bg i{left:67%;top:30%}.ffauth-radar-bg b{left:35%;top:72%}@keyframes ffauthSweep{to{transform:rotate(360deg)}}
+.ffauth-card{position:relative;width:min(720px,96vw);background:linear-gradient(180deg,rgba(10,29,40,.98),rgba(4,14,21,.99));border:1px solid #28556a;border-radius:17px;box-shadow:0 28px 90px rgba(0,0,0,.7);overflow:hidden}
+.ffauth-head{display:flex;align-items:center;gap:16px;padding:21px 25px;border-bottom:1px solid rgba(96,220,255,.18)}.ffauth-head h2{margin:0;font-size:27px;letter-spacing:.12em}.ffauth-head p{margin:5px 0 0;color:#92aab4;font-size:11px;letter-spacing:.08em}.ffauth-logo{width:66px;height:66px;border:2px solid #62dcff;border-radius:50%;display:grid;place-items:center;position:relative;color:#57f49a;font-weight:800;font-size:10px;text-align:center}.ffauth-logo:before,.ffauth-logo:after{content:"";position:absolute;border:1px solid rgba(96,220,255,.38);border-radius:50%}.ffauth-logo:before{inset:8px}.ffauth-logo:after{inset:20px}
+.ffauth-body{padding:22px 25px}.ffauth-body label,.ffauth-user-dialog label{display:block;color:#92aab4;font-size:11px;font-weight:700;margin:12px 0 6px}.ffauth-body input,.ffauth-body select,.ffauth-user-dialog input,.ffauth-user-dialog select{width:100%;padding:11px 12px;border:1px solid #2b586a;border-radius:7px;background:#041019;color:#e7f3f7;font-size:14px}.ffauth-password-row{display:flex}.ffauth-password-row input{border-radius:7px 0 0 7px}.ffauth-password-row button{border:1px solid #2b586a;border-left:0;background:#0d2430;color:#62dcff;border-radius:0 7px 7px 0;padding:0 12px}.ffauth-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:15px}.ffauth-link{background:none;border:0;color:#62dcff;text-decoration:underline;cursor:pointer}.ffauth-notice{border-left:3px solid #ffc65c;background:rgba(255,198,92,.08);padding:10px 12px;color:#f4dcad;font-size:12px;line-height:1.45}.ffauth-disclaimer{margin:0 25px 23px;padding:12px;border:1px solid rgba(255,119,119,.35);background:rgba(255,119,119,.07);border-radius:7px;color:#ffc8c8;font-size:11px;line-height:1.5}.ffauth-message{min-height:18px;margin:10px 0 0;font-size:12px;color:#92aab4}.ffauth-message.err{color:#ff7777}.ffauth-message.ok{color:#57f49a}
+.ffauth-user-modal{position:fixed;inset:0;z-index:210000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:18px}.ffauth-user-modal[hidden]{display:none}.ffauth-user-dialog{width:min(1000px,98vw);max-height:92vh;overflow:auto;background:#081720;border:1px solid #2b586a;border-radius:14px;padding:20px;color:#e7f3f7}.ffauth-user-title{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #23495a}.ffauth-user-title h2{letter-spacing:.08em}.ffauth-user-title button{font-size:28px;background:none;border:0;color:#fff}.ffauth-user-form{display:grid;grid-template-columns:150px 1fr 150px 1fr;gap:12px}.ffauth-check{display:flex!important;align-items:center;gap:8px;margin:0!important}.ffauth-check input{width:auto}.ffauth-user-list{margin-top:18px}.ffauth-user-row{display:grid;grid-template-columns:100px 1fr 110px 85px minmax(330px,auto);gap:8px;align-items:center;padding:9px;border:1px solid #1d4353;border-radius:7px;margin-top:7px;font-size:12px}.ffauth-user-row button{padding:6px 8px;margin:2px;border:1px solid #31576a;background:#0c202b;color:#e7f3f7;border-radius:5px}
+@media(max-width:760px){.ffauth-user-form,.ffauth-user-row{grid-template-columns:1fr}.ffauth-head h2{font-size:20px}.ffauth-user-dialog{padding:14px}}
+
+
+/* Release: emphasise the primary NOTAM code / keyword input. */
+#hazNotamCode {
+  background: #d9f3ff !important;
+  color: #07131c !important;
+  border: 2px solid #59d3ff !important;
+  box-shadow: 0 0 0 2px rgba(89, 211, 255, .16), 0 0 14px rgba(89, 211, 255, .22);
+  font-weight: 700;
+}
+#hazNotamCode::placeholder { color: #526875 !important; opacity: 1; }
+#hazNotamCode:focus {
+  background: #eefaff !important;
+  border-color: #7ce3ff !important;
+  box-shadow: 0 0 0 3px rgba(89, 211, 255, .28), 0 0 18px rgba(89, 211, 255, .36);
+}
+
+/* Professional UI overhaul */
+:root{--pro-bg:#07111a;--pro-panel:#0b1822;--pro-panel-2:#0e202c;--pro-border:#223b4b;--pro-blue:#28a8ff;--pro-red:#ef3f35;--pro-text:#edf5f8;--pro-muted:#94a9b5}
+body{background:linear-gradient(145deg,#050c12,#091722);color:var(--pro-text)}
+header{background:linear-gradient(180deg,#07111a,#08141d);border-bottom:1px solid var(--pro-border);box-shadow:0 8px 28px rgba(0,0,0,.28);min-height:72px;padding:0 18px}
+.brand h1{font-family:Inter,Arial,sans-serif;font-size:24px;letter-spacing:.04em}.brand h1 span{color:var(--pro-blue)}
+.ffapp-update-info,.status,.entertainment-banner,#cursorCoord,#pushEnableBtn,#pushStatus,.clock{display:none!important}
+.header-session-actions{margin-left:auto;display:flex;align-items:center;gap:10px}.header-session-actions[hidden]{display:none!important}.header-role-label{font-size:12px;color:var(--pro-blue);font-weight:800;letter-spacing:.08em;margin-right:4px}.header-action-btn{background:#0b1720;border:1px solid #334b5a;color:#fff;border-radius:7px;padding:10px 14px;font-weight:700}.header-action-btn:hover{border-color:var(--pro-blue)}.header-action-btn.danger:hover{border-color:var(--pro-red);color:#ff8f88}
+.admin-access{display:none!important}
+#infoPanel,.tabpanel,.panel-section{background:var(--pro-panel)}
+.tabs{background:#07131c;border-bottom:1px solid var(--pro-border)}.tab-btn{font-family:Inter,Arial,sans-serif;text-transform:none;letter-spacing:0;font-weight:700;color:#b7c7cf}.tab-btn.active{color:#fff;background:#102431;border-bottom:3px solid var(--pro-red)}
+.section-title{font-family:Inter,Arial,sans-serif;color:#fff;text-transform:none;letter-spacing:0;font-size:18px}
+input,select,textarea{background:#091722!important;border:1px solid #294454!important;border-radius:6px!important;color:#f5f8fa!important}input:focus,select:focus,textarea:focus{border-color:var(--pro-blue)!important;box-shadow:0 0 0 2px rgba(40,168,255,.12)!important}
+.btn{border-radius:6px}.btn.primary{background:linear-gradient(180deg,#168cff,#0872d9);border-color:#2ca5ff;color:#fff}.btn.danger{border-color:#843a3a;color:#ff8d87}
+.custom-location-shell{display:grid;gap:14px}.custom-location-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:12px}.custom-location-card,.range-bearing-card{background:linear-gradient(180deg,#0b1a24,#09151e);border:1px solid var(--pro-border);border-radius:9px;padding:15px}.custom-location-card-title{font-size:17px;font-weight:800;margin-bottom:14px}.custom-location-actions{display:flex;gap:8px;flex-wrap:wrap}.custom-location-marker-wrap{background:none!important;border:none!important;overflow:visible!important}.custom-location-label{position:absolute;left:50%;bottom:13px;transform:translateX(-50%);min-width:120px;text-align:center;color:#fff;font-size:10px;font-weight:700;line-height:1.15;text-shadow:0 1px 3px #000,0 0 4px #000;white-space:nowrap;pointer-events:none}.custom-location-dot{position:absolute;left:55px;top:15px;width:10px;height:10px;border-radius:50%;background:#e32828;border:1.5px solid #fff;box-shadow:0 0 0 2px rgba(227,40,40,.25),0 2px 5px rgba(0,0,0,.7)}.custom-location-name-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}.custom-location-show-label{display:flex!important;align-items:center;gap:6px;white-space:nowrap;margin:0!important;color:#d9e6ed!important;font-size:12px!important}.custom-location-show-label input{width:auto!important;margin:0!important}.custom-location-picking{cursor:crosshair!important}.rb-readout{border-color:var(--pro-border);background:#07131c}
+@media(max-width:900px){.custom-location-toolbar{grid-template-columns:1fr}.header-role-label{display:none}.header-action-btn{padding:8px 9px;font-size:11px}}
+
+/* Release 129 — improved header and Operational Queue spacing */
+@media (min-width: 901px) {
+  header {
+    min-height: 96px;
+    padding: 14px 30px;
+    gap: 28px;
+    align-items: center;
+  }
+  header .brand {
+    flex: 0 0 auto;
+    gap: 18px;
+    margin-right: 18px;
+    white-space: nowrap;
+  }
+  header .brand .dot {
+    width: 18px;
+    height: 18px;
+    box-shadow: 0 0 14px var(--green);
+  }
+  header .brand h1,
+  .brand h1 {
+    font-size: 34px;
+    line-height: 1;
+    letter-spacing: .055em;
+    font-weight: 700;
+  }
+  header .search-box {
+    flex: 1 1 650px;
+    max-width: 860px;
+    gap: 12px;
+  }
+  header .search-box input {
+    width: auto;
+    min-width: 420px;
+    flex: 1 1 auto;
+    min-height: 50px;
+    padding: 10px 16px;
+    border-radius: 9px;
+    font-size: 17px;
+    text-transform: none;
+  }
+  header .search-box .btn {
+    min-height: 50px;
+    padding: 10px 18px;
+    border-radius: 9px;
+    font-size: 17px;
+  }
+  .header-session-actions {
+    flex: 0 0 auto;
+  }
+  .ffapp-opq-strip {
+    top: 96px;
+    min-height: 66px;
+    padding: 10px 30px;
+    gap: 14px;
+    font-size: 14px;
+    border-bottom-color: rgba(95,212,255,.34);
+  }
+  .ffapp-opq-title {
+    margin-right: 8px;
+    font-size: 15px;
+  }
+  .ffapp-opq-pill {
+    padding: 9px 15px;
+    font-size: 14px;
+    border-radius: 18px;
+  }
+  .ffapp-opq-status {
+    font-size: 12px;
+  }
+  .ffapp-opq-panel {
+    top: 170px;
+    max-height: calc(100vh - 188px);
+  }
+  main {
+    padding-top: 66px;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1250px) {
+  header {
+    padding-left: 20px;
+    padding-right: 20px;
+    gap: 18px;
+  }
+  header .brand h1,
+  .brand h1 { font-size: 28px; }
+  header .brand .dot { width: 14px; height: 14px; }
+  header .search-box input { min-width: 280px; font-size: 14px; }
+  .ffapp-opq-strip { padding-left: 20px; padding-right: 20px; gap: 9px; }
+  .ffapp-opq-pill { padding: 8px 11px; font-size: 12px; }
+}
+
+/* Release 133: Custom Location workflow */
+.custom-location-actions #customLocationEditBtn{border-color:#4a6878}
+.custom-location-actions #customLocationVisibilityBtn{border-color:#3c6577}
+.custom-location-card input:disabled,.custom-location-card textarea:disabled{opacity:.78;background:#07121a;color:#b9c9d1;cursor:not-allowed}
+#customLocationDeleteBtn[hidden]{display:none!important}
+.tabs .tab-btn span{display:block;line-height:1.05}.route-planner{padding-bottom:20px}.route-toolbar{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}.route-point{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:10px;margin:8px 0;border:1px solid #28495b;border-radius:8px;background:#081620}.route-point-num{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#188bd0;color:white;font-weight:700}.route-point-actions{display:flex;gap:4px;flex-wrap:wrap}.route-point-icon{position:relative}.route-point-icon span{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#fff;color:#052030;border:2px solid #1689d0;font-size:11px;font-weight:800}.route-point-icon b{position:absolute;left:50%;bottom:25px;transform:translateX(-50%);white-space:nowrap;background:#07131de8;color:#fff;padding:2px 5px;border-radius:3px;font-size:10px;font-weight:600}.ff-route-btn{margin:4px 4px 2px auto}.tdb-route-btn{display:block;width:100%;margin-top:4px;background:#0f5e8d;border:1px solid #48baff;color:#fff;border-radius:3px;font-size:9px;font-weight:700;padding:3px;cursor:pointer}
+@media(max-width:700px){.route-point{grid-template-columns:24px 1fr}.route-point-actions{grid-column:2}.route-toolbar{grid-template-columns:1fr}}
+
+/* Release 141: compact NOTAM provenance beside plotted hazard activity/ref. */
+.haz-source-ref {
+  font-size: .78em;
+  font-style: italic;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+
+/* Release143 — visible NOTAM / plotted pin / PIB page provenance */
+.haz-plotted-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 7px;
+  margin-bottom: 3px;
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 12px;
+}
+.haz-plotted-code { color: var(--text, #dfeaf0); }
+.haz-plotted-pin { color: var(--green, #35f28a); font-style: italic; font-weight: 700; }
+.haz-plotted-page { color: var(--muted, #8fa6b2); font-style: italic; }
+
+/* Release 155 — INFO panel opens to half screen on tablet/desktop.
+   Keep the map visible beside the information workspace while giving NOTAM
+   and plotted-hazard content substantially more horizontal room. */
+@media (min-width:881px){
+  #side{
+    width:50vw !important;
+    flex:0 0 50vw !important;
+    min-width:0 !important;
+  }
+  .info-handle{
+    right:50vw !important;
+  }
+  main.info-collapsed .info-handle{
+    right:0 !important;
+  }
+}
+
+/* On smaller portrait/mobile displays retain the existing slide-over layout. */
+@media (max-width:880px){
+  #side{
+    width:88vw !important;
+    max-width:520px !important;
+    flex-basis:auto !important;
+  }
+  .info-handle{
+    right:0 !important;
+  }
+}
+
+
+/* Release 165 — direct Danger Area administration */
+.hazdam-area-card{border:1px solid #20394a;border-radius:10px;padding:12px;margin:0 0 10px;background:#0d1b27;}
+.hazdam-area-card.hazdam-state-active{border-color:#b43b3b;}
+.hazdam-area-card.hazdam-state-pending{border-color:#b8792f;}
+.hazdam-area-card-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;}
+.hazdam-area-card-id{font-family:var(--mono);font-size:17px;color:#e6f0f6;margin-right:10px;}
+.hazdam-area-card-name{font-size:12px;color:#8fa8b7;}
+.hazdam-area-card-actions{display:flex;align-items:center;gap:8px;}
+.hazdam-protect-label{display:flex;align-items:center;gap:5px;font-size:11px;color:#a9bdc8;white-space:nowrap;}
+.hazdam-area-direct-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;}
+.hazdam-area-direct-grid .field{margin:0;}
+.hazdam-area-direct-grid select,.hazdam-area-direct-grid input{width:100%;}
+.hazdam-area-card-foot{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-size:10px;color:#7691a1;font-family:var(--mono);}
+@media(max-width:720px){.hazdam-area-direct-grid{grid-template-columns:1fr}.hazdam-area-card-head{align-items:flex-start}.hazdam-area-card-actions{flex-wrap:wrap;justify-content:flex-end}}
+
+.ffauth-remember-row{display:flex!important;align-items:center;gap:8px;margin:10px 0 4px!important;color:#cfe3ea!important;font-size:12px!important;cursor:pointer}
+.ffauth-remember-row input{width:auto!important;margin:0;accent-color:#62dcff}
+.ffauth-save-warning{font-size:10px;line-height:1.35;color:#8fa7b1;margin:0 0 8px}
+
+/* Release 190: chart-style Danger Area leaders and selection emphasis. */
+.leaflet-overlay-pane svg path.hazdam-label-stalk{
+  stroke:#b40000 !important;
+  stroke-width:.7px !important;
+  stroke-opacity:.58 !important;
+  fill:none !important;
+  vector-effect:non-scaling-stroke;
+  pointer-events:none;
+}
+.leaflet-overlay-pane svg path.hazdam-label-stalk.hazdam-stalk-selected{
+  stroke-width:1.25px !important;
+  stroke-opacity:.95 !important;
+}
+.leaflet-overlay-pane svg path.hazdam-aip-area.hazdam-selected-area{
+  stroke-width:2.35px !important;
+  stroke-opacity:1 !important;
+  filter:drop-shadow(0 0 4px rgba(95,212,255,.62)) brightness(1.08);
+}
+.hazdam-label.hazdam-label-selected{
+  text-decoration:none;
+  color:#d00000;
+  text-shadow:0 0 2px #fff,0 0 5px rgba(95,212,255,.9);
+}
+.hazdam-info-popup-right .leaflet-popup-content-wrapper{
+  box-shadow:0 4px 18px rgba(0,0,0,.48),0 0 0 1px rgba(95,212,255,.16);
+}
+
+
+/* Release 191: selected DA visibility + east-side wide information card. */
+.leaflet-overlay-pane svg path.hazdam-aip-area.hazdam-selected-area{
+  fill:#ff9b9b !important;
+  fill-opacity:.42 !important;
+  stroke:#ff2020 !important;
+  stroke-width:2.35px !important;
+  stroke-opacity:1 !important;
+  filter:drop-shadow(0 0 4px rgba(255,32,32,.42));
+}
+.hazdam-info-popup-right .leaflet-popup-content{
+  width:500px !important;
+  max-width:500px !important;
+}
+.hazdam-info-popup-right .hazdam-popup{
+  min-width:0 !important;
+  max-width:none !important;
+  width:100%;
+  font-size:10.5px;
+  line-height:1.28;
+}
+
+
+/* DEV selected-area popup leader: one line, midpoint start, one target head. */
+.hazdam-info-popup-right .leaflet-popup-tip-container{display:none !important;}
+.hazdam-popup-arrowhead-wrap{background:transparent !important;border:0 !important;}
+.hazdam-popup-arrowhead{position:absolute;left:1px;top:5px;width:0;height:0;border-top:4px solid transparent;border-bottom:4px solid transparent;border-left:11px solid #111;transform-origin:8px 4px;}
+
+/* Release194 — HAZPLOT popup mirrors Danger Area popup architecture. */
+.hazplot-info-popup .leaflet-popup-tip-container{display:none !important;}
+.hazplot-info-popup .leaflet-popup-content-wrapper{min-width:420px;}
+.hazplot-info-popup .leaflet-popup-content{margin:18px 20px;}
+
+/* Release196 — AIP Supplement link inside Danger Area popup */
+.hazdam-supp-link{color:#55cfff;text-decoration:none;font-weight:700;}
+.hazdam-supp-link:hover{text-decoration:underline;}
+
+
+/* Release197 effective Danger Area data strip */
+.hazdam-area-effective-strip{
+  margin:7px 0 0;
+  padding:6px 8px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  align-items:center;
+  border:1px solid #294654;
+  border-radius:5px;
+  background:#07151e;
+  color:#b9cbd6;
+  font-size:11px;
+}
+.hazdam-area-effective-strip b{color:#d8e8f1;}
+.hazdam-area-effective-strip span:first-of-type{color:#67c8ff;}
+
+
+/* Release199 airfield NOTAM D schedule */
+.airfield-notam-schedule-d{
+  color:#ffd166;
+  font-weight:800;
+}
+
+/* Release239: Red Arrows transit AUTO legs */
+.red-arrows-leg { stroke-linecap: round; stroke-linejoin: round; }
+.red-arrows-leg-flash { animation: redArrowsSlowFlash 2.6s ease-in-out infinite; }
+@keyframes redArrowsSlowFlash { 0%,100% { opacity: .95; } 50% { opacity: .22; } }
+.red-arrows-direction { font-size: 17px; line-height:18px; width:18px; height:18px; text-align:center; transform-origin:50% 50%; text-shadow:0 0 2px rgba(255,255,255,.95); }
+/* Release298: keep Red Arrows time/position labels compact at every visible zoom.
+   Long position names are capped rather than allowing a label to grow across the map. */
+.red-arrows-waypoint-tooltip{
+  margin:0!important;padding:1px 3px!important;border:1px solid rgba(210,0,0,.48)!important;
+  border-radius:3px!important;background:rgba(255,255,255,.90)!important;color:#111!important;
+  box-shadow:0 1px 1px rgba(0,0,0,.10)!important;font:700 7px/1 var(--mono)!important;
+  white-space:nowrap!important;pointer-events:none!important;
+  max-width:132px!important;overflow:hidden!important;
+}
+.red-arrows-waypoint-tooltip:before{border-top-color:rgba(210,0,0,.48)!important;}
+.red-arrows-waypoint-time{display:block;text-align:center;color:#9d0000;font-weight:900;font-size:7px;line-height:8px;}
+.red-arrows-waypoint-name{
+  display:block;text-align:center;color:#111;font-weight:800;font-size:6px;line-height:7px;margin-top:0;
+  max-width:126px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.leaflet-container.red-arrows-labels-hidden .red-arrows-waypoint-tooltip{display:none!important;}
+.leaflet-container.red-arrows-labels-visible .red-arrows-waypoint-tooltip{display:block;}
+@media (max-width:900px){
+  .red-arrows-waypoint-tooltip{font-size:6px!important;padding:1px 2px!important;max-width:112px!important;}
+  .red-arrows-waypoint-time{font-size:6px;line-height:7px;}
+  .red-arrows-waypoint-name{font-size:5.5px;line-height:6px;max-width:108px;}
+}
+
+/* DEV 242 — full-screen ADMIN UTC time editor */
+.utc-time-modal{position:fixed;inset:0;z-index:50000;background:rgba(0,8,14,.72);display:flex;align-items:center;justify-content:center;padding:24px;text-align:left}
+.utc-time-modal[hidden]{display:none!important}
+.utc-time-modal-card{width:min(900px,calc(100vw - 48px));background:#08131d;border:1px solid #31546c;border-radius:14px;box-shadow:0 22px 60px rgba(0,0,0,.62);padding:18px;color:#d7e5ee;font-family:var(--mono)}
+.utc-time-modal-head{display:flex;align-items:center;justify-content:space-between;font-size:20px;color:#f3f7fa;border-bottom:1px solid #203747;padding:2px 2px 14px}.utc-time-close{border:0;background:transparent;color:#a9bac5;font-size:30px;cursor:pointer}
+.utc-time-modal-body{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-top:14px}.utc-time-fields,.utc-time-preview{border:1px solid #31546c;border-radius:10px;padding:16px;background:#091721}.utc-time-section-title{font-size:14px;font-weight:800;margin-bottom:14px;color:#d7e5ee}
+.utc-time-modal .utc-clock-manual-grid{display:grid;grid-template-columns:1.7fr .75fr .75fr;gap:16px}.utc-time-modal label{display:block;color:#5fd4ff;font-size:12px;font-weight:800;margin-bottom:7px}.utc-time-modal input{box-sizing:border-box;width:100%;height:48px;background:#0d1d29;color:#fff;border:1px solid #31546c;border-radius:8px;padding:8px 12px;font:700 18px var(--mono);text-align:center}.utc-time-modal input[type=date]{text-align:left}.utc-time-modal input:focus{border-color:#49cfff;outline:2px solid rgba(73,207,255,.28)}.utc-time-modal small{display:block;color:#8fa8b7;font-size:10px;text-align:center;margin-top:6px}
+.utc-time-preview{text-align:center}.utc-time-preview-value{font-size:28px;font-weight:900;color:#fff;margin-top:30px}.utc-time-preview-date{font-size:14px;color:#9fb4c0;margin-top:7px}.utc-time-info{margin-top:12px;border:1px solid #31546c;border-radius:9px;padding:12px 16px;color:#5fd4ff;font-size:12px;line-height:1.5}.utc-time-modal .utc-clock-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:14px}.utc-time-modal .utc-clock-btn{font-size:13px;padding:9px 24px;border-radius:7px}.utc-time-modal .utc-clock-btn.reset{border-color:#e64b4b;color:#ff7777}.utc-time-modal .utc-clock-status{text-align:left;font-size:11px}
+@media(max-width:720px){.utc-time-modal{padding:10px}.utc-time-modal-card{width:calc(100vw - 20px);padding:12px}.utc-time-modal-body{grid-template-columns:1fr}.utc-time-modal .utc-clock-manual-grid{grid-template-columns:1fr 1fr}.utc-time-modal .utc-clock-manual-grid>div:first-child{grid-column:1/-1}.utc-time-modal .utc-clock-actions{flex-wrap:wrap}.utc-time-preview-value{margin-top:8px}}
+
+/* DEV 244 — editable UTC date and time */
+.utc-clock-date-time-grid{grid-template-columns:repeat(5,minmax(110px,1fr));}
+@media (max-width:1050px){.utc-clock-date-time-grid{grid-template-columns:repeat(3,minmax(120px,1fr));}}
+@media (max-width:700px){.utc-clock-date-time-grid{grid-template-columns:repeat(2,minmax(120px,1fr));}}
+
+/* DEV246 — Red Arrows moving-aircraft proof of concept (one leg only). */
+.red-arrows-plane-marker{background:transparent!important;border:0!important;pointer-events:none!important;}
+.red-arrows-plane-wrap{width:22px;height:18px;display:flex;align-items:center;justify-content:center;transform-origin:50% 50%;filter:drop-shadow(0 1px 1px rgba(255,255,255,.85)) drop-shadow(0 1px 2px rgba(0,0,0,.45));}
+.red-arrows-plane-wrap img{display:block;width:22px;height:auto;max-height:18px;object-fit:contain;pointer-events:none;user-select:none;}
+
+/* Release254 — Danger Area activation-state visual correction.
+   PENDING: flashes for 15 minutes before activation.
+   ACTIVE: steady solid translucent red fill (no hatch), until NOTAM end. */
+.leaflet-overlay-pane svg path.hazdam-aip-area.hazdam-state-active{
+  fill:#ff2020 !important;
+  fill-opacity:.28 !important;
+  stroke:#ff2020 !important;
+  stroke-width:2.4px !important;
+  stroke-opacity:1 !important;
+  animation:none !important;
+  filter:drop-shadow(0 0 5px rgba(255,32,32,.55));
+}
+
+/* Release 263 — AARA 15-minute pre-activation flash */
+@keyframes aaraPendingFlash {
+  0%,49% { stroke-opacity:1; fill-opacity:.24; }
+  50%,100% { stroke-opacity:.28; fill-opacity:.04; }
+}
+.leaflet-overlay-pane svg path.aara-pending-flash {
+  animation:aaraPendingFlash 1s steps(1,end) infinite;
+}
+@keyframes aaraLabelPendingFlash { 0%,49%{opacity:1} 50%,100%{opacity:.2} }
+.aara-label-pending { animation:aaraLabelPendingFlash 1s steps(1,end) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .leaflet-overlay-pane svg path.aara-pending-flash,.aara-label-pending { animation:none; }
+}
+
+
+/* Release270 — Similar callsign attention getter on TDB */
+@keyframes tdbSimilarCallsignPulse {
+  0%, 49% { border-color:#ffb000; box-shadow:0 0 0 2px rgba(255,176,0,.55), 0 0 16px rgba(255,176,0,.7); }
+  50%, 100% { border-color:#ff4d00; box-shadow:0 0 0 2px rgba(255,77,0,.55), 0 0 16px rgba(255,77,0,.7); }
+}
+.ac-tdb.tdb-similar-callsign { animation:tdbSimilarCallsignPulse .8s steps(1,end) infinite; }
+.tdb-similar-row { margin-top:3px; padding:3px 4px; border:1px solid #ffb000; background:rgba(255,176,0,.16); color:#ffd36a; font-weight:700; letter-spacing:.25px; }
+
+/* Release 280 — Similar Callsign TDB annunciator + unobtrusive wide NM scale */
+@keyframes tdbSimLabelPulse {
+  0%,100% { color:#ff9d22; opacity:1; text-shadow:0 0 3px rgba(255,157,34,.28); }
+  50% { color:#ffc46b; opacity:.68; text-shadow:none; }
+}
+.ac-tdb.tdb-similar-callsign { animation:none; }
+.tdb-sim-btn {
+  position:absolute;
+  top:-17px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:14;
+  width:max-content;
+  min-width:0;
+  height:15px;
+  padding:0 3px;
+  border:0;
+  border-radius:2px;
+  background:#000;
+  color:#ff9d22;
+  font:700 8px/15px var(--mono);
+  letter-spacing:.035em;
+  text-align:center;
+  white-space:nowrap;
+  cursor:pointer;
+  user-select:none;
+}
+.tdb-sim-btn.tdb-sim-unacked { animation:tdbSimLabelPulse 1.6s ease-in-out infinite; }
+.tdb-sim-btn.tdb-sim-acked {
+  animation:none;
+  color:#ff9d22;
+  opacity:1;
+  text-shadow:none;
+}
+.tdb-sim-btn:hover { color:#ffbf63; }
+@media (prefers-reduced-motion: reduce) {
+  .tdb-sim-btn.tdb-sim-unacked { animation:none; color:#ff9d22; opacity:1; }
+}
+
+.fiso-nm-scale {
+  min-width:0;
+  padding:0 2px 2px;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  color:#111;
+  font-family:var(--mono);
+  pointer-events:none;
+}
+.fiso-nm-scale-label {
+  margin-bottom:1px;
+  color:#111;
+  font-size:8px;
+  font-weight:600;
+  line-height:1;
+  text-align:center;
+  white-space:nowrap;
+  text-shadow:0 0 2px rgba(255,255,255,.85);
+}
+.fiso-nm-scale-bar {
+  height:6px;
+  border-left:1px solid #111;
+  border-right:1px solid #111;
+  border-bottom:1px solid #111;
+  box-sizing:border-box;
+}
+
+
+/* Release 273 — Southampton FMC temporary highlight */
+.southampton-fmc-tooltip.leaflet-tooltip {
+  background: rgba(20, 25, 28, 0.92);
+  border: 1px solid rgba(217, 185, 0, 0.9);
+  box-shadow: 0 1px 5px rgba(0,0,0,.35);
+  color: #f8f3cf;
+  padding: 4px 6px;
+  pointer-events: none;
+}
+.southampton-fmc-tooltip.leaflet-tooltip:before { display: none; }
+.southampton-fmc-info {
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+}
+
+
+/* Release 281 — NOTAM-controlled danger areas fail-safe inactive appearance */
+.leaflet-overlay-pane svg path.hazdam-aip-area.hazdam-state-inactive{
+  fill:transparent !important;
+  fill-opacity:0 !important;
+  stroke:#c92b2b !important;
+  stroke-opacity:.75 !important;
+}
+
+/* Release 281 — Notification settings */
+.notify-panel{background:#07131d;border:1px solid #244352;border-radius:8px;padding:12px;margin-bottom:10px;}
+.notify-panel h3{margin:0 0 8px;color:#5fd4ff;font:700 12px var(--mono);letter-spacing:.04em;}
+.notify-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:10px;}
+#pushEnableBtn.push-enabled{border-color:var(--green)!important;color:var(--green)!important;}
+.push-status{font:700 10px var(--mono);color:#93a9b5;}
+.push-status.ok{color:var(--green);}.push-status.err{color:#ff7777;}
+.notify-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.notify-grid label{display:flex;align-items:flex-start;gap:8px;border:1px solid #1f3948;background:#06111a;border-radius:6px;padding:8px;cursor:pointer;}
+.notify-grid input{margin-top:2px;}
+.notify-grid span{display:flex;flex-direction:column;gap:2px;}
+.notify-grid b{font:700 11px var(--mono);color:#dce9f1;}
+.notify-grid small{font:10px var(--sans);color:#839aa7;line-height:1.25;}
+.notify-pch-note{margin-top:9px;padding:7px 8px;border-left:3px solid #ffb648;background:rgba(255,182,72,.06);font-size:10px;color:#b9cad3;line-height:1.35;}
+@media(max-width:680px){.notify-grid{grid-template-columns:1fr;}}
+/* Release 281 override: the professional-header cleanup hid the old push controls globally. */
+#tab-notifications #pushEnableBtn{display:inline-flex!important;}
+#tab-notifications #pushStatus{display:inline!important;}
+
+/* Release 284 — Similar callsign annunciator on always-visible aircraft TDB/mini-label */
+.ac-label .ac-sim-call-sign {
+  position:absolute;
+  left:50%;
+  top:-14px;
+  transform:translateX(-50%);
+  z-index:20;
+  width:max-content;
+  padding:0 3px;
+  border:0;
+  border-radius:2px;
+  background:#000;
+  color:#ff9d22;
+  font:700 7.5px/12px var(--mono);
+  letter-spacing:.025em;
+  white-space:nowrap;
+  cursor:pointer;
+  user-select:none;
+  pointer-events:auto;
+}
+.ac-label .ac-sim-call-sign.tdb-sim-unacked { animation:tdbSimLabelPulse 1.6s ease-in-out infinite; }
+.ac-label .ac-sim-call-sign.tdb-sim-acked { animation:none; color:#ff9d22; opacity:1; text-shadow:none; }
+.ac-label .ac-sim-call-sign:hover { color:#ffc46b; }
+@media (prefers-reduced-motion: reduce) {
+  .ac-label .ac-sim-call-sign.tdb-sim-unacked { animation:none; color:#ff9d22; opacity:1; }
+}
+
+
+/* Release296 — TEMP CTA operational overlay. The fill is deliberately faint so
+   aircraft symbols and TDBs remain dominant. Five minutes before activation the
+   SVG polygon flashes; reduced-motion users receive a steady warning state. */
+.tempo-cta-shape { pointer-events: auto; }
+.tempo-cta-shape.tempo-cta-flash { animation: tempoCtaFlash .8s steps(1,end) infinite; }
+@keyframes tempoCtaFlash { 0%,49% { opacity:.55; } 50%,100% { opacity:.08; } }
+@media (prefers-reduced-motion: reduce) {
+  .tempo-cta-shape.tempo-cta-flash { animation:none; opacity:.32; stroke-dasharray:7 5; }
+}
+
+
+/* Release305 — one-click VIEW ONLY mode */
+body.view-only-mode .search-box,
+body.view-only-mode #adminAccess,
+body.view-only-mode #clockEditBtn,
+body.view-only-mode #playbackBar,
+body.view-only-mode #mobileNav .mob-nav-btn:not(#mobBtnMap):not(#mobBtnStrips) {
+  display:none !important;
+}
+body.view-only-mode #createBlankStripBtn { display:none !important; }
+body.view-only-mode #stripsPanel input,
+body.view-only-mode #stripsPanel select,
+body.view-only-mode #stripsPanel textarea,
+body.view-only-mode #stripsPanel button {
+  pointer-events:none !important;
+  opacity:.78;
+}
+body.view-only-mode #stripsPanelHeader button { display:none !important; }
+body.view-only-mode #infoCollapseHandle {
+  display:flex !important;
+  pointer-events:auto !important;
+  opacity:1 !important;
+}
+body.view-only-mode:not(.view-edit-mode) #side {
+  pointer-events:none;
+}
+body.view-only-mode.view-edit-mode #side {
+  pointer-events:auto;
+}
+body.view-only-mode.view-edit-mode #side .tabs {
+  grid-template-columns:1fr !important;
+}
+body.view-only-mode.view-edit-mode #side .tab-btn[data-tab="airfield-met"] {
+  display:flex !important;
+}
+
+
+/* Release306 — exact VIEW ONLY presentation: map + strips only */
+body.view-only-mode:not(.view-edit-mode) header .brand { display:flex !important; }
+body.view-only-mode:not(.view-edit-mode) header .search-box,
+body.view-only-mode:not(.view-edit-mode) #adminAccess,
+body.view-only-mode:not(.view-edit-mode) #panelToggle,
+body.view-only-mode:not(.view-edit-mode) #clockEditBtn,
+body.view-only-mode:not(.view-edit-mode) #ffappUpdateInfo,
+body.view-only-mode:not(.view-edit-mode) #apiStatus {
+  display:none !important;
+}
+body.view-only-mode:not(.view-edit-mode) #headerSessionActions {
+  display:flex !important;
+}
+body.view-only-mode:not(.view-edit-mode) #headerRoleLabel {
+  display:inline-flex !important;
+  color:var(--cyan);
+  font-weight:800;
+  letter-spacing:.08em;
+}
+body.view-only-mode:not(.view-edit-mode) #stripsPanel {
+  display:flex !important;
+}
+body.view-only-mode:not(.view-edit-mode) #stripsPanelHeader #createBlankStripBtn {
+  display:none !important;
+}
+body.view-only-mode:not(.view-edit-mode) #side {
+  pointer-events:none !important;
+}
+body.view-only-mode:not(.view-edit-mode) #infoCollapseHandle {
+  display:flex !important;
+  pointer-events:auto !important;
+  opacity:1 !important;
+}
+body.view-only-mode:not(.view-edit-mode) #stripsCollapseHandle {
+  display:flex !important;
+}
+body.view-only-mode:not(.view-edit-mode) #mobileNav {
+  display:none !important;
+}
+/* Keep existing strip appearance, but make every editing control inert. */
+body.view-only-mode #stripsPanel input,
+body.view-only-mode #stripsPanel select,
+body.view-only-mode #stripsPanel textarea,
+body.view-only-mode #stripsPanel button {
+  pointer-events:none !important;
+}
+body.view-only-mode #stripsPanel input,
+body.view-only-mode #stripsPanel select,
+body.view-only-mode #stripsPanel textarea {
+  user-select:none;
+}
+
+
+/* Release307 — compact limited-edit INFO workspace */
+body.view-only-mode.view-edit-mode #side {
+  width:340px !important;
+  flex:0 0 340px !important;
+  min-width:340px !important;
+  max-width:340px !important;
+}
+body.view-only-mode.view-edit-mode .info-handle {
+  right:340px !important;
+}
+body.view-only-mode.view-edit-mode main.info-collapsed .info-handle {
+  right:0 !important;
+}
+body.view-only-mode.view-edit-mode #side .tabpanel {
+  padding:10px 10px 18px !important;
+}
+body.view-only-mode.view-edit-mode #tab-airfield-met {
+  display:block !important;
+}
+body.view-only-mode.view-edit-mode #paraSiteList {
+  display:block !important;
+  width:100% !important;
+}
+body.view-only-mode.view-edit-mode .para-card {
+  width:100% !important;
+  box-sizing:border-box !important;
+  margin-left:0 !important;
+  margin-right:0 !important;
+}
+body.view-only-mode.view-edit-mode #side .tabs {
+  display:block !important;
+}
+body.view-only-mode.view-edit-mode #side .tabs .tab-btn[data-tab="airfield-met"] {
+  display:flex !important;
+  width:100% !important;
+  min-height:32px;
+  align-items:center;
+  justify-content:flex-start;
+  padding-left:10px;
+}
+@media (max-width:880px){
+  body.view-only-mode.view-edit-mode #side {
+    width:min(340px,92vw) !important;
+    flex-basis:min(340px,92vw) !important;
+    min-width:min(340px,92vw) !important;
+    max-width:min(340px,92vw) !important;
+  }
+  body.view-only-mode.view-edit-mode .info-handle { right:0 !important; }
+}
+
+
+/* Release308 — VIEW ONLY must genuinely start with INFO shut */
+body.view-only-mode:not(.view-edit-mode) #side {
+  width:0 !important;
+  flex:0 0 0 !important;
+  flex-basis:0 !important;
+  min-width:0 !important;
+  max-width:0 !important;
+  overflow:hidden !important;
+  border-left:0 !important;
+  visibility:hidden !important;
+}
+body.view-only-mode:not(.view-edit-mode) .info-handle {
+  right:0 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+}
+body.view-only-mode.view-edit-mode #side {
+  visibility:visible !important;
+  width:340px !important;
+  flex:0 0 340px !important;
+  flex-basis:340px !important;
+  min-width:340px !important;
+  max-width:340px !important;
+  overflow:hidden !important;
+}
+body.view-only-mode.view-edit-mode #tab-airfield-met {
+  display:block !important;
+  visibility:visible !important;
+  overflow-y:auto !important;
+}
+body.view-only-mode.view-edit-mode #paraSiteList,
+body.view-only-mode.view-edit-mode #paraSiteList .para-card {
+  display:block !important;
+  visibility:visible !important;
+}
+body.view-only-mode.view-edit-mode #paraSiteList {
+  min-height:40px;
+}
+
+
+/* Release309 — plain VIEW ONLY starts as map + strips only.
+   Collapse the INFO grid column itself, not just the #side contents. */
+body.view-only-mode:not(.view-edit-mode) main,
+body.view-only-mode:not(.view-edit-mode) main.info-collapsed {
+  grid-template-columns: var(--strips-w, 220px) minmax(0, 1fr) 0px !important;
+}
+body.view-only-mode:not(.view-edit-mode) #side {
+  display:none !important;
+  width:0 !important;
+  min-width:0 !important;
+  max-width:0 !important;
+}
+body.view-only-mode:not(.view-edit-mode) #mapWrap {
+  min-width:0 !important;
+  width:auto !important;
+}
+
+
+/* Release310 — definitive VIEW ONLY desktop layout fix.
+   #side is removed from flex layout and #map is explicitly sized to consume
+   everything between the strips panel and the right edge. */
+body.view-only-mode:not(.view-edit-mode) main {
+  display:flex !important;
+}
+body.view-only-mode:not(.view-edit-mode) #stripsPanel {
+  flex:0 0 var(--strips-width) !important;
+  width:var(--strips-width) !important;
+}
+body.view-only-mode:not(.view-edit-mode) #side {
+  display:none !important;
+  flex:0 0 0 !important;
+  width:0 !important;
+}
+body.view-only-mode:not(.view-edit-mode) #map {
+  display:block !important;
+  flex:1 1 0 !important;
+  flex-basis:0 !important;
+  min-width:0 !important;
+  max-width:none !important;
+  width:calc(100% - var(--strips-width)) !important;
+}
+body.view-only-mode:not(.view-edit-mode) .info-handle {
+  right:0 !important;
+  display:flex !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+}
+
+
+/* Release311 — VIEW ONLY is strictly map + read-only strips.
+   INFO is removed completely and cannot be opened. */
+body.view-only-mode #side,
+body.view-only-mode #infoCollapseHandle {
+  display:none !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+body.view-only-mode main {
+  display:flex !important;
+}
+body.view-only-mode #stripsPanel {
+  flex:0 0 var(--strips-width) !important;
+  width:var(--strips-width) !important;
+}
+body.view-only-mode #map {
+  flex:1 1 0 !important;
+  flex-basis:0 !important;
+  min-width:0 !important;
+  max-width:none !important;
+  width:calc(100% - var(--strips-width)) !important;
+}
+
+
+/* Release313 — VIEW ONLY INFO is available on demand and defaults to PARA SITES. */
+body.view-only-mode:not(.view-edit-mode) #infoCollapseHandle {
+  display:flex !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  right:0 !important;
+}
+body.view-only-mode:not(.view-edit-mode) #side {
+  display:flex !important;
+  visibility:visible !important;
+  width:500px !important;
+  flex:0 0 500px !important;
+  min-width:500px !important;
+  max-width:500px !important;
+}
+body.view-only-mode:not(.view-edit-mode) main.info-collapsed #side {
+  flex-basis:0 !important;
+  width:0 !important;
+  min-width:0 !important;
+  max-width:0 !important;
+  overflow:hidden !important;
+  border-left:0 !important;
+}
+body.view-only-mode:not(.view-edit-mode) main:not(.info-collapsed) #side {
+  flex-basis:500px !important;
+  width:500px !important;
+  min-width:500px !important;
+  max-width:500px !important;
+  overflow:hidden !important;
+}
+body.view-only-mode:not(.view-edit-mode) main:not(.info-collapsed) .info-handle { right:500px !important; }
+body.view-only-mode:not(.view-edit-mode) #notamWorkspaceSubnav .btn[data-notam-sub="airfield-met"] {
+  border-color:var(--cyan) !important;
+}
+
+/* Release315 — push notifications suspended */
+#tab-notifications #pushEnableBtn,
+#tab-notifications #pushDisableBtn,
+#tab-notifications #pushTestBtn,
+#tab-notifications #pushSimTestBtn,
+#tab-notifications #pushHazplotTestBtn,
+#tab-notifications .notify-pref {
+  opacity:.45 !important;
+  cursor:not-allowed !important;
+}
+
+/* Release319 — authoritative initial INFO closed state */
+main.info-collapsed #side {
+  flex:0 0 0 !important;
+  width:0 !important;
+  min-width:0 !important;
+  max-width:0 !important;
+  overflow:hidden !important;
+  border-left:0 !important;
+  visibility:hidden !important;
+}
+main.info-collapsed #map {
+  flex:1 1 0 !important;
+  min-width:0 !important;
+  width:auto !important;
+  max-width:none !important;
+}
+main:not(.info-collapsed) #side {
+  visibility:visible !important;
+}
+
+/* View Only must also honour the same closed startup state. */
+body.view-only-mode main.info-collapsed #side {
+  flex:0 0 0 !important;
+  width:0 !important;
+  min-width:0 !important;
+  max-width:0 !important;
+  visibility:hidden !important;
+}
+body.view-only-mode main.info-collapsed #map {
+  flex:1 1 0 !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+}
+
+
+/* DEV340 — retired user-facing PARA SITES and DANGER AREAS workspaces.
+   Their hidden DOM/data remains available to operational plotting code. */
+.removed-ui-panel{display:none!important;}
+
+
+/* Dev343 — compact latitude/longitude popup on map left-click */
+.fiso-coordinate-popup .leaflet-popup-content-wrapper {
+  border-radius: 5px;
+}
+.fiso-coordinate-popup .leaflet-popup-content {
+  margin: 7px 9px 6px;
+  min-width: 132px;
+}
+.fiso-coordinate-popup .leaflet-popup-close-button {
+  width: 18px;
+  height: 18px;
+  line-height: 17px;
+  font-size: 14px;
+}
+.fiso-coordinate-readout {
+  font-size: 10px;
+  line-height: 1.3;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+.fiso-coordinate-readout > div:not(.fiso-coordinate-decimal) {
+  display: grid;
+  grid-template-columns: 34px auto;
+  gap: 5px;
+  align-items: baseline;
+}
+.fiso-coordinate-readout span {
+  opacity: .65;
+  font-size: 9px;
+}
+.fiso-coordinate-readout strong {
+  font-weight: 600;
+  font-size: 10px;
+}
+/* DEV373 — LAT/LONG values can be clicked and overtyped with a coordinate or waypoint. */
+.fiso-coordinate-edit{
+  width:106px;min-width:0;padding:1px 3px;border:1px solid transparent;border-radius:3px;
+  background:transparent;color:inherit;font:600 10px/1.2 var(--mono);outline:none;
+}
+.fiso-coordinate-edit:hover{border-color:rgba(95,212,255,.35);background:rgba(95,212,255,.05)}
+.fiso-coordinate-edit:focus{border-color:#5fd4ff;background:#07111a;color:#fff;box-shadow:0 0 0 1px rgba(95,212,255,.15)}
+.fiso-coordinate-decimal {
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid rgba(255,255,255,.12);
+  opacity: .6;
+  font-size: 8px;
+}
+
+/* Release343 — live NOTAM airport / LARS closure ticker. */
+.notam-closure-ticker{
+  position:absolute;left:0;right:0;bottom:0;height:30px;z-index:795;
+  display:flex;align-items:center;overflow:visible;
+  background:rgba(7,11,15,.96);border-top:1px solid #6b2323;
+  box-shadow:0 -2px 10px rgba(0,0,0,.35);font-family:var(--mono);
+  pointer-events:auto;
+}
+.notam-closure-ticker-label{
+  flex:0 0 auto;height:100%;display:flex;align-items:center;padding:0 12px;
+  background:#8f1f1f;color:#fff;font-weight:900;font-size:11px;letter-spacing:.08em;
+  white-space:nowrap;z-index:2;
+}
+/* DEV419 — current PIB NOTAM search positioned directly above the ticker label. */
+.notam-ticker-left-stack{
+  position:relative;flex:0 0 auto;height:100%;display:flex;align-items:stretch;z-index:4;
+}
+.notam-ticker-left-stack .notam-closure-ticker-label{height:100%;box-sizing:border-box;}
+.notam-ticker-search-label{
+  position:absolute;left:7px;bottom:56px;color:#fff;background:rgba(7,11,15,.94);
+  padding:2px 5px;border-radius:3px 3px 0 0;font:900 9px/1.2 var(--mono);letter-spacing:.08em;
+  white-space:nowrap;pointer-events:none;
+}
+.notam-ticker-search{
+  position:absolute;left:7px;bottom:30px;width:142px;height:26px;box-sizing:border-box;z-index:5;
+  border:1px solid #8f1f1f;border-radius:3px;background:rgba(7,11,15,.97);color:#fff;
+  padding:3px 7px;font:800 11px/18px var(--mono);text-transform:uppercase;outline:none;
+  box-shadow:0 -2px 8px rgba(0,0,0,.28);
+}
+.notam-ticker-search:focus{border-color:#ffd75a;box-shadow:0 0 0 2px rgba(255,215,90,.22);}
+.notam-ticker-search.not-found{border-color:#ff6666;box-shadow:0 0 0 2px rgba(255,70,70,.22);}
+.notam-ticker-code.notam-search-hit{
+  color:#111 !important;background:#ffd75a;border:2px solid #fff;border-radius:4px;
+  padding:2px 5px;text-decoration:none;box-shadow:0 0 0 2px #8f1f1f,0 0 12px rgba(255,215,90,.8);
+}
+.notam-closure-ticker-window{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;}
+.notam-closure-ticker-track{
+  display:flex;width:max-content;align-items:center;will-change:transform;
+  animation:notamClosureTickerScroll var(--notam-ticker-duration, 120s) linear infinite;
+}
+.notam-closure-ticker-copy{
+  display:inline-block;padding-left:42px;padding-right:42px;color:#ffd8d8;
+  font-size:11px;font-weight:700;letter-spacing:.03em;line-height:30px;
+}
+.notam-closure-ticker:hover .notam-closure-ticker-track{animation-play-state:paused;}
+.notam-closure-ticker.no-closures{border-top-color:#28414c;}
+.notam-closure-ticker.no-closures .notam-closure-ticker-label{background:#243742;color:#b9d1da;}
+.notam-closure-ticker.no-closures .notam-closure-ticker-copy{color:#9fb5bd;}
+@keyframes notamClosureTickerScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+/* Keep Leaflet attribution and compact map tools clear of the ticker. */
+.leaflet-bottom{bottom:30px;}
+@media (max-width:760px){
+  .notam-closure-ticker{height:28px;}
+  .notam-closure-ticker-label{padding:0 8px;font-size:9px;letter-spacing:.05em;}
+  .notam-ticker-search{bottom:28px;width:126px;height:24px;font-size:10px;}
+  .notam-ticker-search-label{bottom:52px;font-size:8px;}
+  .notam-closure-ticker-copy{font-size:10px;line-height:28px;padding-left:30px;padding-right:30px;}
+  .leaflet-bottom{bottom:28px;}
+  #mapTools{bottom:42px !important;}
+}
+@media (prefers-reduced-motion:reduce){
+  .notam-closure-ticker-track{animation-duration:var(--notam-ticker-duration, 120s);}
+}
+
+/* DEV363 — NOTAM ticker hover detail and click-drag scrubbing. */
+.notam-closure-ticker-window{cursor:grab;touch-action:none;user-select:none;}
+.notam-closure-ticker-window.ticker-dragging{cursor:grabbing;}
+.notam-ticker-code{
+  color:#fff;font-weight:900;text-decoration:underline;text-decoration-style:dotted;
+  text-underline-offset:2px;cursor:help;outline:none;
+}
+.notam-ticker-code:hover,.notam-ticker-code:focus{color:#fff6a6;text-decoration-style:solid;}
+.notam-ticker-hover-popup{
+  position:fixed;z-index:20000;display:none;box-sizing:border-box;
+  width:min(620px,calc(100vw - 20px));max-height:min(430px,55vh);overflow:auto;
+  padding:12px 14px;border:1px solid #87939b;border-radius:7px;
+  background:rgba(5,9,13,.98);color:#f5f7f8;box-shadow:0 8px 28px rgba(0,0,0,.55);
+  white-space:pre-wrap;font:700 12px/1.45 var(--mono);letter-spacing:.01em;
+  pointer-events:none;
+}
+.notam-ticker-hover-popup.show{display:block;}
+.notam-ticker-hover-popup.pinned{pointer-events:auto;padding-top:30px;}
+.notam-ticker-popup-body{white-space:pre-wrap;}
+.notam-ticker-popup-close{
+  position:absolute;top:5px;right:7px;width:22px;height:22px;padding:0;border:1px solid #6f7c84;
+  border-radius:4px;background:#15212a;color:#fff;font:900 16px/18px Arial,sans-serif;cursor:pointer;
+}
+.notam-ticker-popup-close:hover,.notam-ticker-popup-close:focus{background:#283845;outline:1px solid #a9c6d9;}
+.notam-ticker-separator{color:#e6a0a0;font-weight:900;}
+
+
+/* DEV365 — iPad/iOS ticker visibility and safe-area support. */
+@media (max-width:1180px), (hover:none) and (pointer:coarse){
+  .notam-closure-ticker{
+    position:fixed !important;
+    left:0 !important;right:0 !important;
+    bottom:0 !important;
+    width:100vw !important;
+    min-height:30px;
+    z-index:12000 !important;
+    display:flex !important;
+    visibility:visible !important;
+    opacity:1 !important;
+    transform:none !important;
+  }
+  .notam-closure-ticker-window{min-width:0;touch-action:none;-webkit-user-select:none;user-select:none;}
+  .notam-closure-ticker-track{-webkit-transform:translateZ(0);transform:translateZ(0);}
+  .notam-ticker-code{cursor:pointer;}
+}
+@media (max-width:880px){
+  .notam-closure-ticker{
+    bottom:calc(52px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  #mobileNav{padding-bottom:env(safe-area-inset-bottom, 0px);height:calc(52px + env(safe-area-inset-bottom, 0px));}
+  #app{padding-bottom:calc(52px + env(safe-area-inset-bottom, 0px));}
+}
+
+/* DEV370 — half-height desktop top area (header + Operational Queue).
+   Requested: make the top approximately 50% thinner while retaining all controls. */
+@media (min-width: 901px) {
+  header {
+    min-height: 48px !important;
+    height: 48px !important;
+    padding: 4px 18px !important;
+    gap: 14px !important;
+  }
+  header .brand { gap: 9px !important; margin-right: 8px !important; }
+  header .brand .dot { width: 10px !important; height: 10px !important; box-shadow:0 0 8px var(--green) !important; }
+  header .brand h1, .brand h1 { font-size: 21px !important; line-height:1 !important; letter-spacing:.045em !important; }
+  header .search-box { gap:6px !important; max-width:760px !important; }
+  header .search-box input {
+    min-width: 340px !important;
+    min-height: 34px !important;
+    height:34px !important;
+    padding:5px 10px !important;
+    border-radius:6px !important;
+    font-size:13px !important;
+  }
+  header .search-box .btn {
+    min-height:34px !important;
+    height:34px !important;
+    padding:5px 11px !important;
+    border-radius:6px !important;
+    font-size:13px !important;
+  }
+  .header-session-actions { gap:7px !important; }
+  .header-role-label { font-size:10px !important; margin-right:2px !important; }
+  .header-action-btn { padding:7px 10px !important; border-radius:5px !important; font-size:10px !important; }
+  .utc-clock-panel {
+    min-width:126px !important;
+    padding:2px 6px !important;
+    border-radius:5px !important;
+  }
+  .utc-clock-title { font-size:7px !important; line-height:1 !important; }
+  .utc-clock-value { font-size:14px !important; line-height:1 !important; }
+  .utc-clock-date { font-size:7px !important; margin-top:1px !important; }
+  .utc-clock-btn { margin-top:1px !important; padding:1px 5px !important; font-size:7px !important; }
+
+  .ffapp-opq-strip {
+    top:48px !important;
+    min-height:33px !important;
+    height:33px !important;
+    padding:4px 18px !important;
+    gap:8px !important;
+    font-size:10px !important;
+  }
+  .ffapp-opq-title { margin-right:4px !important; font-size:10px !important; }
+  .ffapp-opq-pill { padding:4px 9px !important; font-size:10px !important; border-radius:14px !important; }
+  .ffapp-opq-status { font-size:9px !important; }
+  .ffapp-opq-panel { top:84px !important; max-height:calc(100vh - 100px) !important; }
+  main { padding-top:33px !important; }
+}
+
+
+/* DEV372 — floating Range & Bearing tool opened from LAT/LONG popup */
+.fiso-coordinate-rnb-link{
+  display:block;margin-top:8px;padding:5px 8px;border:1px solid #2d7695;border-radius:4px;
+  background:#0c2635;color:#74ddff;font:700 11px/1.2 var(--mono);cursor:pointer;text-align:center;width:100%;
+}
+.fiso-coordinate-rnb-link:hover{background:#12384b;color:#fff;border-color:#5fd4ff}
+/* DEV373 — compact draggable R&B window anchored at the map's top-left. */
+.rb-floating-dialog{
+  position:fixed;left:12px;top:92px;transform:none;z-index:1900;
+  width:min(360px,calc(100vw - 20px));background:#0b141d;border:1px solid #4c7890;border-radius:6px;
+  color:#e9f3f7;box-shadow:0 8px 22px rgba(0,0,0,.52);font-family:var(--mono);
+}
+.rb-floating-dialog[hidden]{display:none!important}
+.rb-floating-header{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:#d8dce0;color:#0b1116;border-radius:5px 5px 0 0;border-bottom:1px solid #81909b;cursor:move;user-select:none;touch-action:none}
+.rb-floating-title{font:700 14px/1.05 Georgia,serif;letter-spacing:.01em}
+.rb-floating-close{border:0;background:transparent;color:#4b5860;font-size:19px;line-height:1;cursor:pointer;padding:0 2px}
+.rb-floating-body{padding:8px}
+.rb-floating-row{display:grid;grid-template-columns:38px minmax(0,1fr) 94px;gap:6px;align-items:center;margin-bottom:6px}
+.rb-floating-row label{color:#b9cad3;font-weight:700;font-size:10px}
+.rb-floating-row input{min-width:0;background:#07111a;border:1px solid #4b7186;border-radius:4px;color:#fff;padding:5px 6px;font:700 10px var(--mono);outline:none}
+.rb-floating-row input:focus{border-color:#5fd4ff;box-shadow:0 0 0 1px rgba(95,212,255,.18)}
+.rb-floating-row .btn{padding:5px 6px;font-size:9px;white-space:nowrap}
+.rb-floating-actions{display:flex;gap:5px;flex-wrap:wrap;margin:1px 0 7px 44px}
+.rb-floating-actions .btn{padding:5px 7px;font-size:9px}
+.rb-floating-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:1px}
+.rb-floating-results>div{display:flex;justify-content:space-between;align-items:center;background:#07111a;border:1px solid #27485a;border-radius:4px;padding:5px 7px}
+.rb-floating-results span{color:#9fb5c0;font-size:9px}.rb-floating-results strong{font-size:12px;color:#5fd4ff}
+.rb-floating-status{margin-top:6px;color:#8fa8b4;font-size:8px;line-height:1.3}
+@media (max-width:700px){.rb-floating-dialog{width:min(330px,calc(100vw - 16px))}.rb-floating-row{grid-template-columns:34px 1fr}.rb-floating-row .btn{grid-column:2}.rb-floating-actions{margin-left:40px}}
+
+
+/* DEV377 — compact map brightness slider, bottom-left above Leaflet zoom. */
+.map-brightness-control{
+  margin-left:10px !important;margin-bottom:76px !important;
+  width:154px;padding:7px 9px 8px;border:1px solid #365767;border-radius:6px;
+  background:rgba(4,18,27,.93);box-shadow:0 2px 8px rgba(0,0,0,.35);color:#d9edf4;
+  font-family:var(--mono);box-sizing:border-box;
+}
+.map-brightness-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;font-size:9px;font-weight:800;letter-spacing:.08em;color:#7fc8e6;}
+.map-brightness-row{display:flex;align-items:center;gap:7px;}
+.map-brightness-icon{font-size:14px;line-height:1;color:#ffd45c;}
+.map-brightness-slider{width:116px;height:14px;margin:0;accent-color:#43c9ff;cursor:pointer;}
+.map-brightness-control:hover{border-color:#4d8298;background:rgba(5,24,35,.96);}
+@media(max-width:880px){
+  .map-brightness-control{width:142px;margin-left:8px !important;margin-bottom:72px !important;padding:6px 8px;}
+  .map-brightness-slider{width:104px;}
+}
+
+/* DEV378 — compact on-map LAYERS control. */
+.fiso-layers-control{margin-top:10px!important;margin-right:10px!important;font-family:var(--mono);color:#d8edf5;box-shadow:0 4px 18px rgba(0,0,0,.34);border-radius:5px}
+.fiso-layers-toggle{height:29px;padding:0 10px;border:1px solid #31576a;border-radius:5px;background:rgba(5,19,28,.94);color:#75d8ff;font:800 10px/1 var(--mono);letter-spacing:.08em;cursor:pointer;box-shadow:none}
+.fiso-layers-toggle:hover,.fiso-layers-toggle.is-open{background:rgba(7,29,41,.98);border-color:#54a6c7;color:#a8e8ff}.fiso-layers-toggle span{margin-left:5px;color:#89aeba}
+.fiso-layers-panel{width:276px;margin-top:5px;padding:8px;border:1px solid #31576a;border-radius:6px;background:rgba(4,17,25,.97);backdrop-filter:blur(5px)}.fiso-layers-panel[hidden]{display:none!important}
+.fiso-layers-head{display:flex;align-items:center;justify-content:space-between;padding:1px 2px 7px;color:#6ed4ff;font-size:11px;letter-spacing:.08em;border-bottom:1px solid rgba(80,145,170,.28)}
+.fiso-layers-head button{width:22px;height:22px;padding:0;border:0;background:transparent;color:#a7c3cf;font:18px/20px Arial;cursor:pointer;border-radius:3px}.fiso-layers-head button:hover{background:#173443;color:#fff}
+.fiso-layer-select{display:grid;grid-template-columns:72px 1fr;align-items:center;gap:7px;margin:8px 1px;color:#8fb7c7;font-size:9px;font-weight:800;letter-spacing:.06em}.fiso-layer-select select{height:27px;border:1px solid #294e60;border-radius:4px;background:#071a24;color:#e0f3fa;font:10px var(--mono);padding:0 6px}
+.fiso-layer-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 7px;padding:3px 0 7px;border-bottom:1px solid rgba(80,145,170,.25)}.fiso-layer-grid label{display:flex;align-items:center;gap:6px;min-height:25px;padding:2px 4px;border-radius:3px;color:#c5dce5;font-size:9.5px;cursor:pointer;white-space:nowrap}.fiso-layer-grid label:hover{background:rgba(34,91,116,.23);color:#fff}.fiso-layer-grid input{width:13px;height:13px;margin:0;accent-color:#29bff3}.fiso-layer-wide{grid-column:1/-1}
+.fiso-layer-brightness{padding:8px 3px 5px}.fiso-layer-brightness>div{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;color:#8fb7c7;font-size:9px;font-weight:800;letter-spacing:.05em}.fiso-layer-brightness b{color:#75d8ff;font-size:10px}.fiso-layer-brightness input{width:100%;height:15px;margin:0;accent-color:#43c9ff;cursor:pointer}
+.fiso-layer-foot{display:flex;align-items:center;justify-content:space-between;gap:7px;padding-top:5px}.fiso-layer-foot button{height:24px;border:1px solid #31576a;border-radius:4px;background:#0b2633;color:#bdeafa;font:800 8.5px var(--mono);letter-spacing:.05em;cursor:pointer}.fiso-layer-foot button:hover{border-color:#55a9c9;background:#103544}.fiso-layer-foot span{color:#698d9a;font-size:7.5px;line-height:1.2;text-align:right;max-width:125px}
+.map-brightness-control{display:none!important}
+@media(max-width:700px){.fiso-layers-panel{width:248px}.fiso-layer-grid{grid-template-columns:1fr}.fiso-layer-wide{grid-column:auto}.fiso-layers-control{margin-top:7px!important;margin-right:7px!important}}
+
+
+/* DEV379 — compact WHAT'S HERE? interrogation popup */
+.fiso-whats-here{min-width:280px;max-width:340px;font-family:var(--sans,Arial,sans-serif)}
+.fiso-wh-title{font:900 13px/1.1 var(--mono,monospace);letter-spacing:.08em;color:var(--cyan,#5fd4ff);padding:0 0 6px;border-bottom:1px solid rgba(95,212,255,.28);margin-bottom:6px}
+.fiso-wh-row{display:grid;grid-template-columns:112px minmax(0,1fr);gap:8px;align-items:start;padding:4px 0;border-top:1px solid rgba(255,255,255,.07);font-size:11px;line-height:1.25}
+.fiso-wh-row>span{color:#9fb2c0;font:700 9px/1.25 var(--mono,monospace);text-transform:uppercase;letter-spacing:.03em}
+.fiso-wh-row>b{color:#eaf6fb;font-weight:700;overflow-wrap:anywhere}
+.fiso-wh-row.active>b{color:#ff7878}.fiso-wh-row.soon>b{color:#ffd36b}.fiso-wh-row.clear>b{color:#8fe39c}
+.fiso-wh-actions{display:flex;gap:6px;margin-top:8px;padding-top:7px;border-top:1px solid rgba(95,212,255,.22)}
+.fiso-wh-actions button{flex:1;border:1px solid rgba(95,212,255,.45);background:#102633;color:#eaf6fb;border-radius:5px;padding:5px 7px;font:800 10px/1 var(--mono,monospace);cursor:pointer}
+.fiso-wh-actions button:hover{background:#173747}
+.fiso-whats-here-popup .leaflet-popup-content{margin:10px 12px}
+\n\n
+
+/* DEV382 — compact FR24-style Map Time button and popup beneath LAYERS. */
+.fiso-layers-control{display:flex;flex-direction:column;align-items:flex-end;gap:4px;position:relative}
+.fiso-time-toggle{height:25px;min-width:58px;padding:0 9px;border:1px solid #31576a;border-radius:5px;background:rgba(5,19,28,.92);color:#b9d8e5;font:800 9px/1 var(--mono);letter-spacing:.08em;cursor:pointer;box-shadow:0 2px 7px rgba(0,0,0,.18)}
+.fiso-time-toggle:hover,.fiso-time-toggle.is-open{background:rgba(7,29,41,.98);border-color:#54a6c7;color:#fff}
+.fiso-time-toggle.is-open{color:#ffd166;border-color:#9b762e}
+.fiso-time-panel{position:absolute;top:62px;right:0;width:250px;padding:9px;border:1px solid #31576a;border-radius:7px;background:rgba(4,17,25,.98);color:#d8edf5;box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(6px);box-sizing:border-box}
+.fiso-time-panel[hidden]{display:none!important}
+.fiso-time-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid rgba(75,117,137,.34)}
+.fiso-time-head strong{font:900 11px/1 var(--mono);letter-spacing:.08em;color:#7fdcff}
+.fiso-time-head button{width:22px;height:22px;border:0;background:transparent;color:#92abb5;font:18px/1 sans-serif;cursor:pointer}
+.fiso-time-current{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;color:#819ca8;font:800 8px/1 var(--mono);letter-spacing:.06em}
+.fiso-time-current b{color:#75e39a;font-size:8px}.fiso-time-toggle.is-open + .fiso-time-panel .fiso-time-current b{color:#ffd166}
+.fiso-time-date{width:100%;height:31px;box-sizing:border-box;margin-bottom:6px;border:1px solid #31576a;border-radius:5px;background:#0a1c26;color:#e6f5fb;padding:0 8px;font:700 11px var(--mono);color-scheme:dark}
+.fiso-time-clock{display:grid;grid-template-columns:1fr 12px 1fr;align-items:center;gap:3px;margin-bottom:7px;text-align:center;color:#8faab5;font:800 14px var(--mono)}
+.fiso-time-clock select{height:31px;border:1px solid #31576a;border-radius:5px;background:#0a1c26;color:#fff;text-align:center;font:800 12px var(--mono)}
+.fiso-time-apply,.fiso-time-now{width:100%;height:30px;border-radius:5px;font:900 9px/1 var(--mono);letter-spacing:.05em;cursor:pointer}
+.fiso-time-apply{border:1px solid #2f86b0;background:#11618a;color:#fff;margin-bottom:5px}.fiso-time-apply:hover{background:#1777a6}
+.fiso-time-now{border:1px solid #2e6f4c;background:#0e3524;color:#82e7a6}.fiso-time-now:hover{background:#144b34}
+.fiso-time-note{margin-top:7px;color:#7895a2;font:700 7.5px/1.35 var(--mono)}
+@media(max-width:700px){.fiso-time-panel{width:232px;top:58px}.fiso-time-toggle{height:24px;min-width:54px}}
+
+
+/* DEV385 — half-size centre crosshair + compact W3W/coordinate strip beside LAYERS */
+.fiso-map-centre-reference{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  z-index:780;pointer-events:none;display:flex;align-items:center;justify-content:center;
+}
+.fiso-map-crosshair{position:relative;width:15px;height:15px;opacity:.78;filter:drop-shadow(0 1px 1px rgba(255,255,255,.65))}
+.fiso-map-crosshair::before,.fiso-map-crosshair::after{
+  content:"";position:absolute;background:rgba(7,22,30,.86);border-radius:1px;
+}
+.fiso-map-crosshair::before{left:7px;top:0;width:1px;height:15px}
+.fiso-map-crosshair::after{left:0;top:7px;width:15px;height:1px}
+.fiso-map-topline{display:flex;align-items:center;justify-content:flex-end;gap:5px}
+.fiso-map-centre-coord-top{height:27px;display:flex;align-items:center;padding:0 7px;border:1px solid rgba(49,87,106,.76);border-radius:5px;background:rgba(5,19,28,.84);color:rgba(225,244,251,.82);font:700 8.5px/1 var(--mono);letter-spacing:.015em;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.15)}
+.fiso-w3w-link{height:27px;padding:0 7px;border:1px solid rgba(116,53,58,.72);border-radius:5px;background:rgba(60,17,21,.78);color:#ff9ba0;font:900 8px/1 var(--mono);letter-spacing:.03em;cursor:pointer;box-shadow:0 2px 7px rgba(0,0,0,.15)}
+.fiso-w3w-link:hover{background:rgba(95,26,31,.92);border-color:#c75c65;color:#ffd4d7}
+@media(max-width:700px){
+  .fiso-map-crosshair{width:13px;height:13px}.fiso-map-crosshair::before{left:6px;height:13px}.fiso-map-crosshair::after{top:6px;width:13px}
+  .fiso-map-centre-coord-top{font-size:7px;padding:0 5px;height:24px}.fiso-w3w-link{font-size:7px;height:24px;padding:0 5px}.fiso-map-topline{gap:3px}
+}
+
+
+/* DEV386 — DMS centre readout + compact position-entry dropdown. */
+.fiso-map-centre-coord-top{appearance:none;-webkit-appearance:none;cursor:pointer}
+.fiso-map-centre-coord-top:hover{border-color:#5fd4ff;color:#fff;background:rgba(7,28,40,.94)}
+.fiso-position-panel{position:absolute;right:0;top:34px;width:306px;box-sizing:border-box;padding:8px;border:1px solid #31576a;border-radius:7px;background:rgba(5,18,27,.97);box-shadow:0 8px 22px rgba(0,0,0,.38);z-index:1200;color:#dcebf2;font-family:var(--mono)}
+.fiso-position-panel[hidden]{display:none!important}
+.fiso-position-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;color:#7ad9ff;font:900 9px/1 var(--mono);letter-spacing:.07em}
+.fiso-position-head button{width:21px;height:21px;border:0;border-radius:4px;background:transparent;color:#91aab5;font-size:17px;line-height:17px;cursor:pointer}.fiso-position-head button:hover{background:#14303f;color:#fff}
+.fiso-position-mode{display:grid;grid-template-columns:48px 1fr;align-items:center;gap:6px;margin-bottom:8px}.fiso-position-mode span{font:800 7px/1 var(--mono);color:#7895a2}.fiso-position-mode select{height:27px;border:1px solid #31576a;border-radius:4px;background:#0a1c26;color:#e7f5fa;padding:0 6px;font:800 8px var(--mono)}
+.fiso-position-dms{display:grid;gap:6px}.fiso-dms-line{display:grid;grid-template-columns:24px 38px 37px 9px 31px 9px 47px 9px;align-items:center;gap:2px}.fiso-dms-line b{font:900 8px/1 var(--mono);color:#8fb6c6}.fiso-dms-line select,.fiso-dms-line input{box-sizing:border-box;height:28px;border:1px solid #31576a;border-radius:4px;background:#081923;color:#fff;text-align:center;font:800 9px var(--mono);padding:0 3px}.fiso-dms-line i{font-style:normal;color:#8faab5;font:800 10px/1 var(--mono);text-align:center}.fiso-dms-line input:focus,.fiso-dms-line select:focus,.fiso-w3w-entry input:focus{outline:1px solid #5fd4ff;border-color:#5fd4ff}
+.fiso-position-go{height:29px;border:1px solid #2f86b0;border-radius:5px;background:#105879;color:#fff;font:900 8px/1 var(--mono);letter-spacing:.05em;cursor:pointer}.fiso-position-go:hover{background:#1777a6}
+.fiso-position-w3w{display:grid;gap:7px}.fiso-w3w-entry{display:grid;grid-template-columns:27px 1fr;align-items:center;border:1px solid #7a4449;border-radius:5px;background:#180e11;overflow:hidden}.fiso-w3w-entry span{color:#ff8d95;text-align:center;font:900 10px/1 var(--mono)}.fiso-w3w-entry input{height:30px;border:0;background:#081923;color:#fff;padding:0 8px;font:800 10px var(--mono);min-width:0}.fiso-position-note{color:#718c98;font:700 7px/1.35 var(--mono)}
+.fiso-position-panel.is-error{animation:fisoPosError .28s linear 2}@keyframes fisoPosError{50%{border-color:#ff646d;box-shadow:0 0 0 2px rgba(255,76,86,.2)}}
+@media(max-width:700px){.fiso-position-panel{width:286px;top:31px}.fiso-dms-line{grid-template-columns:22px 36px 34px 8px 29px 8px 43px 8px}.fiso-map-centre-coord-top{font-size:6.4px!important}}
+
+
+/* DEV387 — constrained DMS fields + three-part what3words entry */
+.fiso-w3w-entry.fiso-w3w-split{grid-template-columns:27px minmax(0,1fr) 7px minmax(0,1fr) 7px minmax(0,1fr);gap:0}
+.fiso-w3w-split em{font-style:normal;color:#ff8d95;text-align:center;font:900 10px/1 var(--mono)}
+.fiso-w3w-split input{padding:0 5px;text-align:center;min-width:0}
+.fiso-w3w-split input+em{border-left:0}
+
+/* DEV389 — R&B airfield / location / reporting point selector */
+.rb-input-wrap{position:relative;min-width:0}
+.rb-input-wrap>input{width:100%;box-sizing:border-box}
+.rb-suggest{position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:12000;background:#07111a;border:1px solid #4b7186;border-radius:4px;box-shadow:0 7px 18px rgba(0,0,0,.42);max-height:230px;overflow:auto}
+.rb-suggest[hidden]{display:none!important}
+.rb-suggest-item{display:grid;grid-template-columns:1fr auto;gap:1px 8px;width:100%;text-align:left;border:0;border-bottom:1px solid #183544;background:transparent;color:#fff;padding:6px 8px;cursor:pointer;font-family:var(--mono)}
+.rb-suggest-item:last-child{border-bottom:0}
+.rb-suggest-item:hover,.rb-suggest-item:focus{background:#103246;outline:none}
+.rb-suggest-main{font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-suggest-type{font-size:8px;font-weight:800;color:#5fd4ff;align-self:center}
+.rb-suggest-sub{grid-column:1 / -1;color:#8fa8b4;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* DEV392 - current UK + legacy LAAS fallback airfield layer. Names only open at zoom >= 10. */
+.leaflet-tooltip.laas-airfield-label{
+  background:rgba(248,250,246,.92);
+  border:0;
+  box-shadow:none;
+  color:#111;
+  font-family:var(--mono);
+  font-size:8px;
+  font-weight:800;
+  line-height:1;
+  padding:1px 2px;
+  white-space:nowrap;
+  pointer-events:none;
+  text-shadow:0 0 2px #fff,0 0 2px #fff;
+}
+.leaflet-tooltip-top.laas-airfield-label:before{display:none;}
+\n/* DEV398 — FISOFID Low/High route presentation + on-map basemap choices */\n.fiso-route-arrow-wrap{background:transparent!important;border:0!important;pointer-events:none!important}\n.fiso-route-arrow{display:block;position:absolute;left:1px;top:2px;width:7px;height:5px;transform:rotate(var(--fiso-route-angle));transform-origin:50% 50%;}\n.fiso-route-arrow:before,.fiso-route-arrow:after{content:"";position:absolute;right:0;width:5px;height:1px;border-radius:1px;background:var(--fiso-route-col);transform-origin:right center}\n.fiso-route-arrow:before{top:1.5px;transform:rotate(26deg)}\n.fiso-route-arrow:after{bottom:1.5px;transform:rotate(-26deg)}\n.fiso-layer-select select option[value="fiso-low"],.fiso-layer-select select option[value="fiso-high"]{font-weight:700}\n
+/* DEV408 graded aircraft/TDB size controls */
+.fiso-size-control input[type=range],.fiso-layer-size input[type=range]{width:100%;accent-color:#28b9ff;}
+.fiso-size-control label,.fiso-layer-size>div{display:flex;justify-content:space-between;align-items:center;}
+.fiso-size-scale{display:grid;grid-template-columns:repeat(9,1fr);font:8px/1 var(--mono);color:#6f8c9c;margin-top:2px;text-align:center;}
+.fiso-layer-size{padding:8px 0;border-top:1px solid rgba(50,90,110,.35);}
+.fiso-layer-size>div span{font:700 9px/1 var(--mono);color:#7fa8b8;letter-spacing:.04em;}
+.fiso-layer-size>div b{font:700 10px/1 var(--mono);color:#5fd4ff;}
+
+/* DEV409 compact graded traffic-size controls */
+.fiso-size-control-compact,.fiso-layer-size-compact{padding-top:5px!important;padding-bottom:5px!important;}
+.fiso-size-control input[type=range],.fiso-layer-size input[type=range]{height:12px;opacity:.78;}
+.fiso-size-control input[type=range]::-webkit-slider-runnable-track,.fiso-layer-size input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;}
+.fiso-size-control input[type=range]::-webkit-slider-thumb,.fiso-layer-size input[type=range]::-webkit-slider-thumb{margin-top:-5px;width:13px;height:13px;}
+.fiso-size-scale{font-size:7px!important;color:#587484!important;margin-top:0!important;}
+.fiso-layer-size>div span{font-size:8px!important;color:#6f929f!important;}
+.fiso-layer-size>div b{font-size:9px!important;}
+
+/* DEV410 — compact matched 1–9 display sliders */
+.fiso-layer-size-compact,.fiso-layer-brightness-compact{padding:5px 0!important;border-top:1px solid rgba(50,90,110,.35);}
+.fiso-layer-size-compact>div,.fiso-layer-brightness-compact>div{display:flex;justify-content:space-between;align-items:center;}
+.fiso-layer-size-compact>div span,.fiso-layer-brightness-compact>div span{font:700 8px/1 var(--mono);color:#6f929f;letter-spacing:.04em;}
+.fiso-layer-size-compact>div b,.fiso-layer-brightness-compact>div b{font:700 9px/1 var(--mono);color:#5fd4ff;}
+.fiso-layer-size-compact input[type=range],.fiso-layer-brightness-compact input[type=range]{display:block;width:180px;max-width:100%;height:12px;margin:2px 0 0;accent-color:#28b9ff;opacity:.78;}
+.fiso-layer-size-compact input[type=range]::-webkit-slider-runnable-track,.fiso-layer-brightness-compact input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;}
+.fiso-layer-size-compact input[type=range]::-webkit-slider-thumb,.fiso-layer-brightness-compact input[type=range]::-webkit-slider-thumb{margin-top:-5px;width:13px;height:13px;}
+.fiso-layer-size-compact .fiso-size-scale,.fiso-layer-brightness-compact .fiso-size-scale{width:180px;max-width:100%;display:flex;justify-content:space-between;padding-top:1px;font:600 7px/1 var(--mono);color:#607f8b;}
+.uk-wpt-marker{border-bottom-color:#687176!important;opacity:.72!important;}
+.uk-wpt-label{color:#687176!important;opacity:.72!important;font-weight:500!important;}
+
+/* DEV416 — compact operational AIP airfield popup prototype */
+.aip-ops-popup{min-width:330px;max-width:390px;font-family:var(--mono);font-size:11px}.aip-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.aip-head h3{margin:0;color:var(--cyan);font-size:14px}.aip-head span{display:block;margin-top:2px;opacity:.65;font-size:9px}.aip-head .wx-btn{background:var(--blue);color:#001018;border:0;border-radius:4px;padding:4px 8px;font:900 10px var(--mono);cursor:pointer}.aip-section{border-top:1px solid rgba(95,212,255,.24);padding-top:6px;margin-top:7px}.aip-title{font-size:9px;letter-spacing:.09em;color:var(--cyan);font-weight:900;margin-bottom:4px}.aip-freq{display:grid;grid-template-columns:62px 1fr 62px;gap:5px;align-items:center;padding:2px 0}.aip-freq b{text-align:right;color:#fff;font-size:12px}.aip-freq small{grid-column:2/4;opacity:.65}.aip-service{font-weight:900;color:#9de8ff}.aip-call{opacity:.82}.aip-grid{display:grid;grid-template-columns:1fr 1.25fr;gap:10px}.aip-value{line-height:1.35}.aip-line{display:flex;justify-content:space-between;gap:10px;padding:2px 0}.aip-line a{color:#8fe8ff;text-decoration:none;font-weight:800}.aip-empty{opacity:.6}.aip-actions{margin-top:8px}.aip-btn{display:block;text-align:center;background:#123e50;border:1px solid rgba(95,212,255,.55);color:#aeeeff!important;border-radius:4px;padding:6px 8px;text-decoration:none!important;font-weight:900;font-size:10px}.aip-warning{margin-top:6px;font-size:8px;opacity:.55;line-height:1.25}
+
+/* DEV417 — AIP telephone rows are large touch targets for iPad/iPhone tel: calling. */
+.aip-phone-row{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:34px;margin:3px 0;padding:5px 8px;border:1px solid rgba(95,212,255,.28);border-radius:5px;background:rgba(18,62,80,.28);color:inherit!important;text-decoration:none!important;cursor:pointer;box-sizing:border-box}.aip-phone-row:hover,.aip-phone-row:focus{background:rgba(18,62,80,.55);border-color:rgba(95,212,255,.7);outline:none}.aip-phone-label{font-weight:800;color:#d9f5ff}.aip-phone-number{white-space:nowrap;color:#8fe8ff;font-weight:900;font-size:12px}
+
+/* DEV418 — full eAIP airfield operational popups */
+.aip-ops-popup{width:520px;max-width:calc(100vw - 80px)}
+.aip-ops-popup .aip-freq{grid-template-columns:100px minmax(160px,1fr) 82px;column-gap:10px}
+.aip-ops-popup .aip-phone-row{min-height:34px}
+@media(max-width:700px){.aip-ops-popup{width:min(520px,calc(100vw - 50px));max-width:calc(100vw - 50px)}}
+
+
+/* DEV419 — compact operational quick-reference AIP card */
+.aip-ops-popup{width:550px;max-width:calc(100vw - 64px);font-size:10px;line-height:1.25}
+.aip-ops-popup .aip-head{align-items:center;padding-bottom:2px}
+.aip-ops-popup .aip-head-copy{min-width:0}
+.aip-ops-popup .aip-head h3{display:flex;align-items:baseline;gap:8px;min-width:0;font-size:14px;line-height:1.15}
+.aip-ops-popup .aip-icao{font-size:15px;color:#fff;letter-spacing:.04em;white-space:nowrap}
+.aip-ops-popup .aip-name{color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aip-ops-popup .aip-head .wx-btn{flex:0 0 auto;padding:5px 9px}
+.aip-ops-popup .aip-section{margin-top:5px;padding-top:5px}
+.aip-ops-popup .aip-title{margin-bottom:3px;font-size:8px}
+.aip-ops-popup .aip-freq{grid-template-columns:88px minmax(145px,1fr) 72px;column-gap:8px;padding:1px 0;min-height:18px}
+.aip-ops-popup .aip-freq b{font-size:11px;white-space:nowrap}
+.aip-ops-popup .aip-freq small{font-size:8px;line-height:1.15}
+.aip-ops-popup .aip-grid{grid-template-columns:.85fr 1.45fr;gap:8px}
+.aip-ops-popup .aip-panel{padding:6px 8px;border:1px solid rgba(95,212,255,.18);border-radius:5px;background:rgba(9,29,38,.28)}
+.aip-compact-row{display:flex;justify-content:space-between;gap:8px;padding:1px 0}.aip-compact-row span{opacity:.78;text-align:right}
+.aip-hours-row{display:grid;grid-template-columns:minmax(55px,.45fr) 1fr;gap:7px;padding:1px 0}.aip-hours-row b{color:#d9f5ff}.aip-hours-row span{opacity:.82}
+.aip-ops-popup .aip-phone-row{min-height:27px;margin:2px 0;padding:3px 7px;border-radius:4px}
+.aip-ops-popup .aip-phone-number{font-size:11px}
+.aip-inline-more,.aip-disclosure{margin-top:5px;border-top:1px solid rgba(95,212,255,.18)}
+.aip-inline-more summary,.aip-disclosure summary{list-style:none;cursor:pointer;color:#8fe8ff;font:900 8px/1.2 var(--mono);letter-spacing:.06em;padding:6px 2px 4px;user-select:none}
+.aip-inline-more summary::-webkit-details-marker,.aip-disclosure summary::-webkit-details-marker{display:none}
+.aip-inline-more summary:before,.aip-disclosure summary:before{content:'▸';display:inline-block;width:12px;color:#5fd4ff}.aip-inline-more[open] summary:before,.aip-disclosure[open] summary:before{content:'▾'}
+.aip-count{display:inline-block;min-width:16px;padding:1px 4px;margin-left:4px;border-radius:8px;background:rgba(95,212,255,.14);text-align:center;color:#bfefff}
+.aip-inline-more-body{padding-top:1px}.aip-disclosure-body{padding:2px 2px 5px}
+.aip-notams{margin-top:2px}.aip-notam-list{max-height:175px;overflow:auto}.aip-notam-item{margin-bottom:5px;white-space:pre-wrap;font-size:9px;line-height:1.25}
+.aip-ops-popup .aip-actions{margin-top:6px}.aip-ops-popup .aip-btn{padding:5px 8px;font-size:9px}
+.aip-ops-popup .aip-warning{margin-top:1px;font-size:8px}
+@media(max-width:700px){.aip-ops-popup{width:calc(100vw - 42px);max-width:calc(100vw - 42px)}.aip-ops-popup .aip-grid{grid-template-columns:1fr 1.25fr}.aip-ops-popup .aip-freq{grid-template-columns:72px minmax(110px,1fr) 66px}.aip-hours-row{grid-template-columns:52px 1fr}}
+@media(max-width:480px){.aip-ops-popup .aip-grid{grid-template-columns:1fr}.aip-ops-popup .aip-freq{grid-template-columns:68px minmax(90px,1fr) 62px;column-gap:5px}.aip-ops-popup .aip-call{white-space:normal}}
+
+/* DEV423 — keep the Leaflet zoom +/- control comfortably above the bottom edge/ticker,
+   especially on iPad where the browser chrome can obscure the lower button. */
+.leaflet-bottom.leaflet-left .leaflet-control-zoom{
+  margin-bottom:72px !important;
+}
+@media (max-width:1024px), (pointer:coarse){
+  .leaflet-bottom.leaflet-left .leaflet-control-zoom{
+    margin-bottom:96px !important;
+  }
+}
+
+
+/* DEV424 — compact PARAS operational quick-control */
+.fiso-ops-button-row{display:flex;align-items:center;justify-content:flex-end;gap:4px}
+.fiso-paras-toggle{min-width:58px}
+.fiso-notams-toggle{width:58px;min-width:58px;padding:0 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:7px;line-height:1.15;letter-spacing:.02em}
+/* DEV464 POPUP BEGIN */
+.fiso-notams-toggle.has-notam-changes{animation:fisoNotamChanges 3s ease-in-out infinite;border-color:#d5b66a}
+@keyframes fisoNotamChanges{0%,100%{background:rgba(5,19,28,.92);box-shadow:0 2px 7px #0003}50%{background:#41534c;box-shadow:0 0 6px #dfca8c80}}
+@media(prefers-reduced-motion:reduce){.fiso-notams-toggle.has-notam-changes{animation:none;background:#41534c;outline:1px solid #d5b66a}}
+.todays-notams-dialog{width:min(980px,96vw);height:92vh;height:92dvh;max-width:96vw;max-height:96vh;border:1px solid #31576a;border-radius:8px;padding:0;overflow:hidden;background:#fff;box-shadow:0 12px 50px #0008}
+.todays-notams-dialog::backdrop{background:#0009}
+.todays-notams-host{display:block;width:100%;height:100%;border:0}
+.todays-notams-close{position:absolute;right:5px;top:5px;width:34px;height:34px;padding:0;background:#102d3e;color:#fff;border:1px solid #7b9baa;border-radius:5px;font:24px/1 Arial;cursor:pointer;z-index:1}
+/* DEV464 POPUP END */
+.fiso-paras-panel{position:absolute;top:62px;right:0;width:430px;max-height:min(72vh,620px);padding:7px;border:1px solid #31576a;border-radius:7px;background:rgba(4,17,25,.98);color:#d8edf5;box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(6px);box-sizing:border-box}
+.fiso-paras-panel[hidden]{display:none!important}
+.fiso-paras-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;font:800 10px/1 var(--mono);letter-spacing:.06em}
+.fiso-paras-head button{border:0;background:transparent;color:#9fc4d3;font-size:18px;line-height:16px;cursor:pointer;padding:0 2px}
+.fiso-paras-key{display:flex;align-items:center;gap:10px;padding:0 2px 5px;border-bottom:1px solid rgba(111,154,173,.22);font:700 7px/1 var(--mono);color:#9fc4d3}
+.fiso-paras-key span{display:flex;align-items:center;gap:4px}.fiso-paras-key small{margin-left:auto;font-size:7px;color:#7897a5}
+.para-dot,.fiso-para-state{display:inline-block;width:11px;height:11px;border:1px solid rgba(255,255,255,.42);border-radius:2px;box-sizing:border-box}
+.para-dot-off,.fiso-para-state.is-inactive{background:#1768b0}.para-dot-on,.fiso-para-state.is-active{background:#d92f35}
+.fiso-paras-list{overflow:auto;max-height:calc(min(72vh,620px) - 52px);overscroll-behavior:contain}
+.fiso-para-row{display:grid;grid-template-columns:15px minmax(105px,1fr) 232px;gap:5px;align-items:center;min-height:31px;padding:3px 2px;border-bottom:1px solid rgba(111,154,173,.14)}
+.fiso-para-state{padding:0;cursor:pointer;appearance:none;-webkit-appearance:none}
+.fiso-para-state.is-warning{animation:fisoParaAttention .75s steps(2,end) infinite}
+@keyframes fisoParaAttention{0%,49%{background:#1768b0;box-shadow:0 0 0 0 rgba(255,193,7,0)}50%,100%{background:#ffc107;box-shadow:0 0 0 2px rgba(255,193,7,.25)}}
+.fiso-para-main{min-width:0;display:flex;flex-direction:column;gap:1px}.fiso-para-main b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:800 8px/1.1 var(--mono);color:#e8f6fb}.fiso-para-main span{font:600 7px/1.1 var(--mono);color:#9fc4d3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fiso-para-phone{color:#77c9ee;text-decoration:none}.fiso-para-no-phone{color:#627d89}
+.fiso-para-times{display:flex;align-items:center;justify-content:flex-end;gap:2px}.fiso-para-times input{width:64px;height:22px;padding:0 2px;border:1px solid #31576a;border-radius:3px;background:#071923;color:#d8edf5;font:700 8px/1 var(--mono);box-sizing:border-box}.fiso-para-times i{font-style:normal;color:#7897a5;font-size:8px}
+@media(max-width:700px){.fiso-paras-panel{top:58px;width:min(390px,calc(100vw - 14px));max-height:68vh}.fiso-paras-list{max-height:calc(68vh - 52px)}.fiso-para-row{grid-template-columns:15px minmax(95px,1fr) 138px}.fiso-para-times input{width:62px}}
+
+/* DEV425 PARA level field + iPad editable controls */
+.fiso-para-times .fiso-para-level{width:78px;text-transform:uppercase}
+@media(max-width:700px){.fiso-paras-panel{width:min(500px,calc(100vw - 14px))}.fiso-para-row{grid-template-columns:15px minmax(90px,1fr) 220px}.fiso-para-times input{width:58px}.fiso-para-times .fiso-para-level{width:72px}}
+
+
+/* DEV419 — mobile operational fixes. */
+@media (max-width:880px){
+  .notam-closure-ticker{bottom:0 !important;z-index:12000 !important;}
+  body.view-only-mode:not(.view-edit-mode) #side.open,
+  #side.open{
+    display:flex !important;visibility:visible !important;transform:translateX(0) !important;
+    width:88vw !important;max-width:520px !important;min-width:0 !important;flex-basis:auto !important;
+    overflow:auto !important;pointer-events:auto !important;z-index:13000 !important;
+  }
+  main.info-collapsed #side.open{width:88vw !important;max-width:520px !important;visibility:visible !important;overflow:auto !important;}
+}
+.leaflet-popup-content-wrapper{position:relative;}
+.ff-popup-close-left{
+  position:absolute;top:5px;left:6px;z-index:20;width:24px;height:24px;padding:0;
+  border:0;background:transparent;color:#9aa7b0;font:700 22px/22px Arial,sans-serif;cursor:pointer;
+}
+.ff-popup-close-left:hover,.ff-popup-close-left:focus{color:#fff;outline:none;}
+
+/* DEV421 — split PARA time entry with automatic focus advance HH→MM→HH→MM→FL/ALT */
+.fiso-para-timepair{display:inline-flex;align-items:center;gap:1px}.fiso-para-timepair input{width:25px!important;text-align:center;padding:0 1px!important}.fiso-para-timepair em{font-style:normal;color:#8fb0bf;font:700 9px/1 var(--mono)}
+@media(max-width:700px){.fiso-para-timepair input{width:24px!important}.fiso-para-times{gap:1px}.fiso-para-times .fiso-para-level{width:66px}}
+
+
+/* DEV424 — aircraft interaction/stacking isolation. */
+.leaflet-aircraft-pane{z-index:950 !important;pointer-events:none;}
+.leaflet-aircraft-pane .leaflet-marker-icon{pointer-events:auto;}
+.leaflet-aircraft-pane .ac-wrap,.leaflet-aircraft-pane .ac-tdb,.leaflet-aircraft-pane .ac-label{isolation:isolate;}
+.ac-tdb input,.ac-tdb button,.ac-tdb label,.ac-tdb select,.ac-tdb textarea{pointer-events:auto !important;}
+
+/* DEV419 — NOTAM change alert + draggable NOTAM popups */
+.notam-change-indicator{display:none;margin-left:8px;padding:2px 7px;border:1px solid #ffb84d;border-radius:4px;background:#2a2112;color:#ffd18a;font:700 10px/1.2 var(--mono,monospace);letter-spacing:.03em;cursor:pointer;vertical-align:1px}
+.notam-change-indicator.show{display:inline-block}
+.notam-change-indicator.flash{animation:notamChangeGentleFlash 2.2s ease-in-out infinite}
+@keyframes notamChangeGentleFlash{0%,100%{opacity:.58;box-shadow:none}50%{opacity:1;box-shadow:0 0 8px rgba(255,184,77,.55)}}
+.hazplot-info-popup .leaflet-popup-content-wrapper{cursor:grab}
+.hazplot-info-popup.notam-popup-dragging .leaflet-popup-content-wrapper{cursor:grabbing;user-select:none}
+
+/* DEV423 — tidy NOTAM search without changing the original 30px ticker geometry. */
+.notam-closure-ticker{height:30px;overflow:visible;}
+.notam-ticker-left-stack{
+  position:relative;flex:0 0 auto;height:30px;display:block;overflow:visible;z-index:6;
+}
+.notam-ticker-left-stack .notam-closure-ticker-label{
+  position:relative;height:30px;display:flex;align-items:center;padding:0 10px;box-sizing:border-box;
+}
+.notam-ticker-search-label{
+  position:absolute;left:6px;bottom:58px;z-index:8;
+  padding:0;background:transparent;border-radius:0;color:#d7e4ea;
+  font:900 9px/12px var(--mono);letter-spacing:.08em;white-space:nowrap;pointer-events:none;
+  text-shadow:0 1px 2px #000;
+}
+.notam-ticker-search{
+  position:absolute;left:6px;bottom:34px;width:166px;height:23px;z-index:8;box-sizing:border-box;
+  border:1px solid #31576a;border-radius:4px;background:#08131b;color:#fff;
+  padding:2px 24px 2px 7px;font:800 10px/17px var(--mono);text-transform:uppercase;outline:none;
+  box-shadow:0 2px 8px rgba(0,0,0,.45);
+}
+.notam-ticker-search::placeholder{color:#8297a2;text-transform:none;font-weight:600;}
+.notam-ticker-search:focus{border-color:#5fd4ff;box-shadow:0 0 0 1px rgba(95,212,255,.28),0 2px 8px rgba(0,0,0,.45);}
+.notam-ticker-search.not-found{border-color:#ff6666;box-shadow:0 0 0 1px rgba(255,102,102,.25),0 2px 8px rgba(0,0,0,.45);}
+
+/* DEV426 — iPad landscape viewport tidy-up.
+   Lift the NOTAM search/ticker clear of Safari's lower chrome and reclaim
+   unused vertical space above the operational map. */
+@media (min-width:881px) and (max-width:1366px) and (hover:none) and (pointer:coarse){
+  header{
+    min-height:34px !important;
+    height:34px !important;
+    padding:2px 12px !important;
+  }
+  header .brand h1,.brand h1{font-size:17px !important;}
+  .utc-clock-panel{padding:1px 5px !important;}
+
+  .ffapp-opq-strip{
+    top:34px !important;
+    min-height:22px !important;
+    height:22px !important;
+    padding:2px 12px !important;
+  }
+  .ffapp-opq-pill{padding:2px 7px !important;font-size:9px !important;}
+  .ffapp-opq-panel{top:59px !important;max-height:calc(100vh - 72px) !important;}
+  main{padding-top:22px !important;}
+
+  .notam-closure-ticker{
+    bottom:20px !important;
+  }
+  .leaflet-bottom{bottom:50px !important;}
+  #mapTools{bottom:64px !important;}
+}
+
+
+/* DEV427 — make NOTAM ticker/search unmistakable and searchable across ALL current PIB NOTAMs. */
+.notam-ticker-left-stack .notam-closure-ticker-label{
+  min-width:154px !important;
+  justify-content:center !important;
+  background:#a51f1f !important;
+  color:#fff !important;
+  border-right:2px solid #ff6b6b !important;
+  font-size:12px !important;
+  letter-spacing:.09em !important;
+  text-shadow:0 1px 2px #000 !important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12) !important;
+}
+.notam-ticker-search-label{
+  left:6px !important;bottom:63px !important;
+  color:#fff !important;background:#a51f1f !important;
+  border:1px solid #ff6b6b !important;border-bottom:0 !important;
+  border-radius:5px 5px 0 0 !important;padding:3px 8px !important;
+  font-size:10px !important;line-height:12px !important;
+  text-shadow:0 1px 2px #000 !important;
+}
+.notam-ticker-search{
+  left:6px !important;bottom:34px !important;width:210px !important;height:30px !important;
+  border:2px solid #ff6b6b !important;border-radius:0 5px 5px 5px !important;
+  background:#07131c !important;color:#fff !important;
+  padding:4px 9px !important;font-size:12px !important;line-height:18px !important;
+  box-shadow:0 0 0 1px rgba(0,0,0,.85),0 3px 10px rgba(0,0,0,.6) !important;
+}
+.notam-ticker-search::placeholder{color:#b9cbd4 !important;opacity:1 !important;font-weight:700 !important;}
+.notam-ticker-search:focus{
+  border-color:#ffd75a !important;
+  box-shadow:0 0 0 2px rgba(255,215,90,.35),0 3px 10px rgba(0,0,0,.6) !important;
+}
+@media (max-width:760px){
+  .notam-ticker-left-stack .notam-closure-ticker-label{min-width:126px !important;font-size:10px !important;}
+  .notam-ticker-search{width:180px !important;height:28px !important;bottom:32px !important;font-size:11px !important;}
+  .notam-ticker-search-label{bottom:60px !important;font-size:9px !important;}
+}
+
+/* DEV462 route readouts remain attached to each aircraft measurement. */
+.rb-route-label{background:#07131c;color:#a9e6ff;border:1px solid #3c7b95;font:700 9px/1.5 var(--mono);text-align:center;width:max-content;max-width:min(280px,calc(100vw - 24px));white-space:normal}
+
+/* DEV463 AIRFIELD EDIT BEGIN */
+#airfieldInfoEditor{width:min(640px,calc(100vw - 24px));max-height:90vh;overflow:auto;border:1px solid #4c7890;border-radius:8px;background:#0b1722;color:#e9f3f7;padding:18px}
+#airfieldInfoEditor::backdrop{background:rgba(0,0,0,.65)}
+#airfieldInfoEditor h3{margin:0 0 8px}#airfieldInfoEditor p{font-size:12px;line-height:1.5}
+.airfield-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.airfield-edit-grid label{display:flex;flex-direction:column;gap:5px;font-size:12px}.airfield-edit-grid input,.airfield-edit-grid textarea{box-sizing:border-box;min-width:0;width:100%;background:#07131c;color:#fff;border:1px solid #3c667b;border-radius:4px;padding:9px;font:inherit}.airfield-edit-grid textarea{min-height:80px}
+.airfield-saved-info{margin:8px 0;padding:9px;border:1px solid #3c667b;border-radius:4px}.airfield-saved-info>b{font-size:10px;color:#79d5f5}.airfield-saved-info>div{display:grid;grid-template-columns:85px 1fr;gap:8px;margin-top:5px;font-size:11px}.airfield-saved-info span{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:500px){.airfield-edit-grid{grid-template-columns:1fr}.airfield-edit-grid input,.airfield-edit-grid textarea{font-size:16px}}
+/* DEV463 AIRFIELD EDIT END */
+
+/* DEV467 AIRFIELD MAP PRESENTATION BEGIN */
+.apt-icao-lbl,.apt-label,.leaflet-tooltip.laas-airfield-label{font-weight:400}
+.leaflet-tooltip.airfield-hover-bubble{width:66px;height:66px;border-radius:50%;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:rgba(7,25,35,.96);border:1px solid #92bbcd;color:#e4f5fc;box-shadow:0 2px 8px #0005;pointer-events:none;box-sizing:border-box;font-family:var(--mono);font-weight:400;text-shadow:none}
+.leaflet-tooltip.airfield-hover-bubble:before{display:none}
+.airfield-hover-code{font-size:11px;line-height:1.1;max-width:58px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:400}
+.airfield-hover-frequency{font-size:9px;line-height:1.1;font-weight:400}
+/* DEV467 AIRFIELD MAP PRESENTATION END */
+
+/* DEV470: read-only roles also start with STRIPS collapsed. */
+body.view-only-mode main.strips-collapsed #stripsPanel:not(.mob-strips){flex-basis:0!important;width:0!important;min-width:0!important}
+body.view-only-mode main.strips-collapsed #map{width:100%!important}

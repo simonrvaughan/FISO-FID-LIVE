@@ -1,0 +1,9 @@
+FFApp / FISO FID App - Proprietary Software Notice
+
+Copyright (c) 2026 Simon Vaughan. All rights reserved.
+
+This software, its source code, design, workflows, alerting logic, data import/export formats, NOTAM parsing behaviour, hazard plotting behaviour, user interface layout, and related documentation are proprietary.
+
+No permission is granted to copy, modify, redistribute, publish, reverse engineer, sell, sublicense, or create derivative works from this software or any part of it without prior written permission from the copyright holder.
+
+Access to the live website does not grant any licence to inspect, copy, scrape, reuse, or reproduce the application code, data structures, or operational concept.
