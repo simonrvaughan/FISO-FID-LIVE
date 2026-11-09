@@ -1016,7 +1016,18 @@ for (const id of Object.keys(STATIC)) {
   function labelHtml(id){
     const s = STATIC[id];
     const lv = effectiveLevels(id);
+    if(window.FISO_AREA_LABELS && window.FISO_AREA_LABELS.applies(id)){
+      const o=operationalForNow(id,true);
+      const record={b:o.notamB||o.autoValidB,c:o.notamC||o.autoValidC,d:o.notamD||o.autoScheduleD,notam:o.notamText||''};
+      const time=window.FISO_AREA_LABELS.timing(record,operationalNowMs());
+      return window.FISO_AREA_LABELS.html(id,o.upper||lv.upper,o.lower||lv.lower,time,areaStateClass(id),selectedId===id);
+    }
     return `<div class="hazdam-label ${areaStateClass(id)} ${selectedId===id?"hazdam-label-selected":""}" data-hazdam-id="${id}"><div class="hazdam-label-id">${safe(s.display)}</div><div class="hazdam-label-limits">${safe(lv.upper)}<br>${safe(lv.lower)}</div></div>`;
+  }
+
+  function labelIcon(id,html){
+    const timed=window.FISO_AREA_LABELS && window.FISO_AREA_LABELS.applies(id);
+    return L.divIcon({className:'hazdam-label-icon',html,iconSize:timed?[126,52]:[66,34],iconAnchor:timed?[63,26]:[33,17]});
   }
 
   function autoActivationScheduleHtml(id){
@@ -1259,7 +1270,7 @@ for (const id of Object.keys(STATIC)) {
     if(obj.label && obj.label.setIcon){
       const html = labelHtml(id);
       if(obj.label.__hazdamHtml !== html){
-        obj.label.setIcon(L.divIcon({ className:"hazdam-label-icon", html, iconSize:[66,34], iconAnchor:[33,17] }));
+        obj.label.setIcon(labelIcon(id,html));
         obj.label.__hazdamHtml = html;
       }
     }
@@ -1399,7 +1410,7 @@ for (const id of Object.keys(STATIC)) {
       const label = L.marker(labelPoint, {
         interactive: true,
         keyboard: true,
-        icon: L.divIcon({ className:"hazdam-label-icon", html:labelHtml(id), iconSize:[66,34], iconAnchor:[33,17] })
+        icon: labelIcon(id,labelHtml(id))
       });
       label.__hazdamId = id;
       label.on("click", () => { selectArea(id, true); openAreaPopup(id); });

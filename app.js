@@ -1262,6 +1262,7 @@ ffappWhenDomReady(function () {
   var hazardMarkers = {}; // id -> marker, runtime only
   var hazardShapes = {}; // id -> polygon/polyline for multi-point areas, runtime only
   var hazardRadiusShapes = {}; // id -> radius circle for TDA / SAR OPS
+  var hazardLabelStalks = {}; // DEV461 chart labels; transient, never persisted
   // Release249: GNSS/GPS/radio-frequency jamming boundaries are normally hidden.
   // They are revealed only from the jamming pin and remain visible for five
   // seconds after the associated popup closes. This is transient UI state only.
@@ -9003,12 +9004,18 @@ ffappWhenDomReady(function () {
       }
       var marker = hazardMarkers[h.id];
       if (marker) {
+        if(marker.__ffappAreaLabelRef){
+          var labelHtml=tdaChartLabelHtml(h);
+          if(marker.__ffappLabelHtml!==labelHtml){marker.setIcon(tdaChartLabelIcon(h,labelHtml));marker.__ffappLabelHtml=labelHtml;}
+        }
         var el = marker.getElement();
         if (el) {
           el.style.display = state === "hidden" ? "none" : "";
           el.classList.toggle("hzflash", state === "soon");
         }
       }
+      var stalk=hazardLabelStalks[h.id];
+      if(stalk && stalk._path){stalk._path.style.display=state==='hidden'?'none':'';stalk._path.classList.toggle('hzflash',state==='soon');}
       var shape = hazardShapes[h.id];
       if (shape) {
         var vis = state !== "hidden";
@@ -9897,7 +9904,8 @@ ffappWhenDomReady(function () {
   }
 
   function showHazardPointLabelsOnSelect(h) {
-    if (h && h.points && h.points.length > 1) addHazardPointLabels(h);
+    if (tdaChartLabelRef(h)) clearHazardPointLabels(); // Arc tessellation vertices are not chart annotations.
+    else if (h && h.points && h.points.length > 1) addHazardPointLabels(h);
     else clearHazardPointLabels();
   }
 
@@ -10241,6 +10249,17 @@ ffappWhenDomReady(function () {
     window.__ffappRedArrowsPlaneTimer=setInterval(function(){try{updateRedArrowsPlanes();}catch(_e){}},250);
   }
 
+  function tdaChartLabelRef(h){
+    var labels=window.FISO_AREA_LABELS;
+    return h && h.type==='tda' && labels && labels.applies(h.displayLabel) && h.points && h.points.length>2 ? labels.ref(h.displayLabel) : '';
+  }
+  function tdaChartLabelHtml(h){
+    return window.FISO_AREA_LABELS.html(tdaChartLabelRef(h),h.upper,h.lower,
+      window.FISO_AREA_LABELS.timing(h,window.ffappNowMs?window.ffappNowMs():Date.now(),notamSolarMinutes),'');
+  }
+  function tdaChartLabelIcon(h,html){
+    return L.divIcon({className:'hazdam-label-icon',html:html||tdaChartLabelHtml(h),iconSize:[126,52],iconAnchor:[63,26]});
+  }
   function renderHazards() {
     setTimeout(refreshNotamPlotReferences,0);
     // Release243: ensure Red Arrows routes exist before evaluating timed legs.
@@ -10255,6 +10274,7 @@ ffappWhenDomReady(function () {
     hazardMarkers = {};
     hazardShapes = {};
     hazardRadiusShapes = {};
+    hazardLabelStalks = {};
     var listEl = document.getElementById("hazList");
     document.getElementById("hazCount").textContent = hazards.length;
     if (!hazards.length) {
@@ -10364,7 +10384,16 @@ ffappWhenDomReady(function () {
           "</div>",
       });
       var canDragPin = hazEditing === h.id && !(h.points && h.points.length > 1);
-      var m = L.marker([h.lat, h.lon], { icon: icon, zIndexOffset: 5000, draggable: canDragPin });
+      var chartRef=tdaChartLabelRef(h),chartLayout=chartRef?window.FISO_AREA_LABELS.layout(chartRef,h.points):null;
+      if(chartRef)icon=tdaChartLabelIcon(h);
+      var m = L.marker(chartLayout?chartLayout.label:[h.lat, h.lon], { icon: icon, zIndexOffset: 5000, draggable: canDragPin });
+      if(chartRef){
+        m.__ffappAreaLabelRef=chartRef;
+        m.__ffappLabelHtml=icon.options.html;
+        var stalk=L.polyline([chartLayout.anchor,chartLayout.label],{color:'#b40000',weight:.7,opacity:.58,interactive:false,className:'hazdam-label-stalk'}).addTo(hazardLayer);
+        stalk.__ffappAreaStalkRef=chartRef;
+        hazardLabelStalks[h.id]=stalk;
+      }
       m.on("click", function () {
         // Release249: for GNSS/GPS/radio-frequency jamming the published area
         // is revealed only when the operator deliberately clicks the pin.

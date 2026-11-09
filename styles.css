@@ -790,6 +790,9 @@
 .hazdam-label.hazdam-label-selected{text-decoration:underline;text-underline-offset:2px;}
 .hazdam-label .hazdam-label-id{font-size:8px;}
 .hazdam-label .hazdam-label-limits{font-size:7px;text-decoration:underline;}
+.ffapp-area-label .ffapp-area-label-time{font-size:7px;line-height:1.15;margin-top:3px;white-space:nowrap;}
+#map.hazdam-z-close .ffapp-area-label .ffapp-area-label-time{font-size:9px;}
+#map.hazdam-z-far .ffapp-area-label .ffapp-area-label-time{font-size:5px;}
 #map.hazdam-z-far .hazdam-label{font-size:5.5px;line-height:1;opacity:.62;}
 #map.hazdam-z-far .hazdam-label .hazdam-label-id{font-size:5.5px;}
 #map.hazdam-z-far .hazdam-label .hazdam-label-limits{font-size:5px;}

@@ -4,10 +4,10 @@ const root=path.join(__dirname,'..'),fixtures=require('./fixtures/marham.json'),
 function model(){
  let time=Date.parse('2026-11-10T11:00:00Z');
  const document={readyState:'loading',addEventListener(){},getElementById(){return null;},querySelector(){return null;},querySelectorAll(){return [];}};
- const window={document,addEventListener(){},ffappNowMs:()=>time,ffappNowDate:()=>new Date(time),FFAPP_NOTAM_SCHEDULE:require('../notam-schedule.js')};
+ const window={document,addEventListener(){},ffappNowMs:()=>time,ffappNowDate:()=>new Date(time),FISO_AREA_LABELS:require('../danger-area-labels.js'),FFAPP_NOTAM_SCHEDULE:require('../notam-schedule.js')};
  const ctx=vm.createContext({window,document,console,setInterval(){},setTimeout(){},clearTimeout(){},localStorage:{getItem(){return null;},setItem(){}}});
  vm.runInContext(fs.readFileSync(path.join(root,'aviationdata.js'),'utf8'),ctx);
- let hz=fs.readFileSync(path.join(root,'hazdam.js'),'utf8').replace('window.HAZDAM = {','window.HAZDAM = { effectiveState, effectiveLevels,');
+ let hz=fs.readFileSync(path.join(root,'hazdam.js'),'utf8').replace('window.HAZDAM = {','window.HAZDAM = { labelHtml, effectiveState, effectiveLevels,');
  vm.runInContext(hz,ctx);
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
  function load(name){const a=app.indexOf('  function '+name+'('),b=app.indexOf('\n  function ',a+12);assert.ok(a>=0,name);vm.runInContext(app.slice(a,b),ctx);}
@@ -32,4 +32,13 @@ test('Marham B/C activation, warning and expiry use HAZDAM with no D schedule',(
   setTime(time);for(const id of ['EGD220A','EGD220B'])assert.equal(window.HAZDAM.effectiveState(id),state,id+' '+time);
  }
  setTime('2026-11-10T11:00:00Z');assert.equal(window.HAZDAM.effectiveLevels('EGD220A').upper,'FL105');assert.equal(window.HAZDAM.effectiveLevels('EGD220B').lower,'FL105');assert.equal(window.HAZDAM.effectiveLevels('EGD220B').upper,'FL195');
+});
+
+test('chart labels show Marham levels and dated activation times without losing separate A/B identities',()=>{
+ const {window,ctx,setTime}=model();for(const n of fixtures){const p=ctx.autoPibDangerAreaPayloads(n)[0];window.HAZDAM.applyAutoNotamBundleToArea(p.areaId,[p]);}
+ setTime('2026-11-10T11:00:00Z');
+ for(const id of ['EGD220A','EGD220B']){const html=window.HAZDAM.labelHtml(id);assert.match(html,/10 NOV 1030–1900Z/);assert.match(html,new RegExp('data-area-ref="'+id.slice(2)+'"'));}
+ assert.match(window.HAZDAM.labelHtml('EGD220A'),/FL105<br>SFC/);assert.match(window.HAZDAM.labelHtml('EGD220B'),/FL195<br>FL105/);
+ setTime('2026-11-10T10:00:00Z');assert.match(window.HAZDAM.labelHtml('EGD220A'),/NEXT 10 NOV/);
+ setTime('2026-11-10T19:00:00Z');assert.match(window.HAZDAM.labelHtml('EGD220A'),/ENDED 10 NOV/);
 });
