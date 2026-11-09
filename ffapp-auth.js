@@ -103,6 +103,11 @@ function friendlyAuthError(err){
 }
 // Account-management code is fetched only when a callable is actually used.
 function callable(name){return async function(data){
+  // DEV461 draft review must not log sign-ins or mutate production accounts.
+  if (/--fisofid\.netlify\.app$/i.test(location.hostname)) {
+    if (name === "recordLogin") return {data:{}};
+    throw new Error("Account changes are disabled in this isolated preview. Use the live site for account management.");
+  }
   await loadExternalScriptOnce("https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js",()=>typeof firebase!=="undefined"&&typeof firebase.app(fbApp.name).functions==="function");
   if(!functions)functions=firebase.app(fbApp.name).functions(REGION);
   return functions.httpsCallable(name)(data);
@@ -188,10 +193,10 @@ window.ffappLoadGeoTiff=function(){
 const FFAPP_BUILD_VERSION="456";
 window.FFAPP_BUILD_VERSION=FFAPP_BUILD_VERSION;
 const CHANGED_OPERATIONAL_ASSETS=new Set(["app.js","aircraft-track.js","hazdam.js","notam-schedule.js","dev456-history-ui.js"]);
-function buildAsset(name){ if(name==="app.js")return name+"?v=472"; if(name==="notam-schedule.js")return name+"?v=472"; return name + "?v=" + (CHANGED_OPERATIONAL_ASSETS.has(name)?FFAPP_BUILD_VERSION:(name==="notamengine.js"?"468":"447")); }
+function buildAsset(name){ if(name==="app.js")return name+"?v=dev461-1"; if(name==="notam-schedule.js")return name+"?v=472"; return name + "?v=" + (CHANGED_OPERATIONAL_ASSETS.has(name)?FFAPP_BUILD_VERSION:(name==="notamengine.js"?"468":"447")); }
 const CORE_OPERATIONAL_SOURCES=[
   // Only code required to draw and operate the initial map blocks first paint.
-  buildAsset("notam-history.js"),buildAsset("aip_airfields_20260903.js"),buildAsset("notamengine.js"),buildAsset("metarengine.js"),buildAsset("laas_airfields_2017.js"),buildAsset("notam-schedule.js"),"todays-notams.js?v=472","notam-annotations.js?v=472","notam-shared.js?v=472","notam-plot-references.js?v=472","airfield-map-labels.js?v=472","todays-notams-page.js?v=472","info-pin.js?v=463","airfield-info.js?v=463",buildAsset("app.js")
+  buildAsset("notam-history.js"),buildAsset("aip_airfields_20260903.js"),buildAsset("notamengine.js"),buildAsset("metarengine.js"),buildAsset("laas_airfields_2017.js"),buildAsset("notam-schedule.js"),"todays-notams.js?v=472","notam-annotations.js?v=472","notam-shared.js?v=472","notam-plot-references.js?v=472","airfield-map-labels.js?v=472","todays-notams-page.js?v=472","info-pin.js?v=463","airfield-info.js?v=463","vendor/geographiclib-geodesic.min.js?v=2.2.0","tda-geometry.js?v=dev461-1",buildAsset("app.js")
 ];
 const DEFERRED_OPERATIONAL_SOURCES=[
   "dev457-dashboard.js?v=1",

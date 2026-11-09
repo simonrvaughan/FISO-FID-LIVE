@@ -1,3 +1,5 @@
+// DEV461 draft previews must not publish AUTO PLOT data to the live Firebase DB.
+window.FISO_DEV461_PREVIEW = /--fisofid\.netlify\.app$/i.test(location.hostname);
 window.FISOFID_DEV_RELEASE = "455";
 console.info("FISOFID DEV Release 455 loaded");
 try {
@@ -765,8 +767,8 @@ ffappWhenDomReady(function () {
   }
 
   (function () {
-    if (typeof firebase === "undefined") {
-      console.warn("[FISO] Firebase SDK not loaded");
+    if (window.FISO_DEV461_PREVIEW || typeof firebase === "undefined") {
+      console.warn(window.FISO_DEV461_PREVIEW ? "[FISO] DEV461 preview: shared database writes disabled; plots are local only" : "[FISO] Firebase SDK not loaded");
       return;
     }
     try {
@@ -9286,6 +9288,7 @@ ffappWhenDomReady(function () {
   }
 
   function sendLiveHazplotPush(hex, h, info) {
+    if (window.FISO_DEV461_PREVIEW) return Promise.resolve(false);
     try {
       var user = (typeof firebase !== "undefined" && firebase.auth) ? firebase.auth().currentUser : null;
       if (!user || !h) return Promise.resolve(false);
@@ -14300,7 +14303,16 @@ ffappWhenDomReady(function () {
     // activation NOTAMs from being duplicated as HAZPLOT TDA hazards.
     if (!/\b(?:TEMPO|TEMPORARY)\s+DANGER\s+AREA\b|\bTDA\b/i.test(eText)) return null;
 
-    var points = autoPibGlidingCoords(eText);
+    // DEV461: consume arc centres as construction data, never boundary vertices.
+    // Decimal seconds and parallel-of-latitude segments retain published precision.
+    var tdaBoundary = null;
+    try {
+      tdaBoundary = window.FFAPP_TDA_GEOMETRY.boundary(eText);
+    } catch (error) {
+      console.warn("DEV461: cannot construct published TDA boundary", n.notamId, error.message);
+      return null; // Do not substitute a misleading Q-line circle/straight polygon.
+    }
+    var points = tdaBoundary ? tdaBoundary.points : autoPibGlidingCoords(eText);
     var pos = points.length ? points[0] : null;
 
     // Standard TDA NOTAMs often publish one full-seconds centre coordinate.
