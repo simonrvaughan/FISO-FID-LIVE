@@ -3146,11 +3146,18 @@ body.view-only-mode main.strips-collapsed #map{width:100%!important}
 #map .hazdam-label.ffapp-area-label{width:108px;box-sizing:border-box;padding:0;border:0;border-radius:0;background:transparent;color:rgba(210,0,0,.95);font-weight:500;text-align:left;line-height:1.02;opacity:.9;text-shadow:0 0 2px rgba(255,255,255,.9),0 0 3px rgba(255,255,255,.7);}
 #map .hazdam-label.ffapp-area-label .ffapp-area-label-time{color:inherit;margin-top:2px;}
 .leaflet-overlay-pane svg path.hazdam-label-stalk.ffapp-area-column-stalk{stroke:#b40000!important;stroke-width:.7px!important;stroke-opacity:.58!important;}
-/* Selection is a separate outline, so activation/pending styling keeps running. */
-@keyframes ffappAreaSelectionPulse{
-  0%,100%{stroke-opacity:.35;stroke-width:2px;}
-  50%{stroke-opacity:.95;stroke-width:3.5px;}
-}
-.leaflet-overlay-pane svg path.ffapp-area-selection-outline{
-  fill:none;pointer-events:none;animation:ffappAreaSelectionPulse 2s ease-in-out infinite;
-}
+/* The timed selection overlay is animated through Leaflet, including canvas renderers. */
+.leaflet-overlay-pane svg path.ffapp-area-selection-outline{pointer-events:none;}
+.ffapp-area-info{width:296px;max-width:calc(100vw - 36px);color:#e4edf3;background:#101c25;border:1px solid #526775;border-radius:5px;box-shadow:0 2px 8px #0005;font:12px/1.35 Arial,sans-serif;}
+.ffapp-area-info>header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;border-bottom:1px solid #40515d;background:none;min-height:0;}
+.ffapp-area-info>header strong{font-size:13px;}
+.ffapp-area-info>header button{border:0;background:none;color:#fff;font-size:22px;line-height:1;cursor:pointer;padding:0 3px;}
+.ffapp-area-info-body{max-height:min(270px,40vh);overflow:auto;overscroll-behavior:contain;padding:0 9px 8px;}
+.ffapp-area-info-body details{border-bottom:1px solid #35434c;padding:7px 0;}
+.ffapp-area-info-body summary{cursor:pointer;color:#a8d9e5;font-weight:600;font-size:12px;}
+.ffapp-area-info-body .hazdam-popup-grid{display:grid;grid-template-columns:90px minmax(0,1fr);gap:4px 8px;margin-top:7px;font-size:11px;}
+.ffapp-area-info-body .hazdam-popup-grid b{font-weight:500;overflow-wrap:anywhere;}
+.ffapp-area-info-body .hazdam-popup-section{border:0;padding-bottom:0;}
+.ffapp-area-info-body .row{display:grid;grid-template-columns:64px minmax(0,1fr);gap:5px;padding:4px 0;font-size:11px;}
+.ffapp-area-info-body .notam-e,.ffapp-area-info-body .hazdam-notam-raw{white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.4 monospace;max-width:100%;}
+@media(max-width:600px){.ffapp-area-info{width:272px;margin-top:72px!important}.ffapp-area-info-body{max-height:min(220px,35vh);}}

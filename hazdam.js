@@ -1169,6 +1169,13 @@ for (const id of Object.keys(STATIC)) {
 
   function openAreaPopup(id){
     if(!map || !window.L || !STATIC[id]) return;
+    if(window.FISO_AREA_INFO){
+      clearAreaPopupLeader();
+      window.FISO_AREA_INFO.show(map,{key:'DA:'+id,title:(STATIC[id].display||id)+' '+(STATIC[id].name||''),html:popupHtml(id),onClose:()=>{
+        if(selectedId===id){selectedId=null;refreshAllAreaLayers();if(!editing)renderPanel();}
+      }});
+      return;
+    }
     clearAreaPopupLeader();
     const bounds = areaBoundsLatLng(id);
     const centre = bounds ? bounds.getCenter() : L.latLng(polygonCentre(STATIC[id].coords));
@@ -1289,6 +1296,7 @@ for (const id of Object.keys(STATIC)) {
     updateLabelZoomClass();
     if(window.FISO_AREA_LABELS)window.FISO_AREA_LABELS.refresh(map);
     if(window.FISO_AREA_SELECTION)window.FISO_AREA_SELECTION.refresh();
+    if(selectedId && window.FISO_AREA_INFO)window.FISO_AREA_INFO.update('DA:'+selectedId,popupHtml(selectedId));
   }
 
   function labelPointWithStalk(id, area, coords, isCircleArea, labelIndex){
@@ -1394,7 +1402,7 @@ for (const id of Object.keys(STATIC)) {
         layersById[existingGeometryId].geometryMembers.push(id);
       } else {
         poly.__hazdamId = id;
-        poly.on("click", () => { selectArea(id, true); openAreaPopup(id); });
+        poly.on("click", () => { selectArea(id, false); openAreaPopup(id); });
         poly.addTo(layerGroup);
         renderedGeometry.set(geomSig, id);
       }
@@ -1416,7 +1424,7 @@ for (const id of Object.keys(STATIC)) {
       });
       label.__hazdamId = id;
       if(window.FISO_AREA_LABELS && window.FISO_AREA_LABELS.applies(id))label.__ffappAreaLayout={ref:window.FISO_AREA_LABELS.ref(id),points:coords.map(p=>({lat:p[0],lon:p[1]})),stalk};
-      label.on("click", () => { selectArea(id, true); openAreaPopup(id); });
+      label.on("click", () => { selectArea(id, false); openAreaPopup(id); });
       label.addTo(layerGroup);
       layersById[id] = { poly: displayedPoly, label, stalk, sharedGeometryWith: existingGeometryId || null, geometryMembers:[id] };
     });

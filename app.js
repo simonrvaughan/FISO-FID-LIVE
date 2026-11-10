@@ -9037,6 +9037,7 @@ ffappWhenDomReady(function () {
     });
     if(window.FISO_AREA_LABELS)window.FISO_AREA_LABELS.refresh(map);
     if(window.FISO_AREA_SELECTION)window.FISO_AREA_SELECTION.refresh();
+    if(activeHazplotPopupId && window.FISO_AREA_INFO){var selectedInfo=findHazardById(activeHazplotPopupId);if(selectedInfo)window.FISO_AREA_INFO.update('TDA:'+selectedInfo.id,hazardPopupHtml(selectedInfo));}
     if(isFinite(nextBoundary))hazardScheduleBoundaryTimer=setTimeout(refreshHazardVisibility,Math.max(10,Math.min(20000,nextBoundary-scheduleNow+1)));
   }
 
@@ -10019,6 +10020,12 @@ ffappWhenDomReady(function () {
     clearHazplotPopupLeader();
     clearHazplotPopupSync();
     activeHazplotPopupId = String(h.id);
+    if(h.type==='tda' && window.FISO_AREA_INFO){
+      window.FISO_AREA_INFO.show(map,{key:'TDA:'+h.id,title:h.displayLabel||'Temporary Danger Area',html:hazardPopupHtml(h),onClose:function(){
+        if(activeHazplotPopupId===String(h.id)){activeHazplotPopupId=null;clearHazardPointLabels();}
+      }});
+      return;
+    }
 
     var bounds = hazardBoundsLatLng(h);
     var centre = bounds ? bounds.getCenter() : L.latLng(Number(h.lat),Number(h.lon));
