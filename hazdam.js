@@ -1027,7 +1027,7 @@ for (const id of Object.keys(STATIC)) {
 
   function labelIcon(id,html){
     const timed=window.FISO_AREA_LABELS && window.FISO_AREA_LABELS.applies(id);
-    return L.divIcon({className:'hazdam-label-icon',html,iconSize:timed?[156,60]:[66,34],iconAnchor:timed?[0,30]:[33,17]});
+    return L.divIcon({className:'hazdam-label-icon',html,iconSize:timed?[108,40]:[66,34],iconAnchor:timed?[0,20]:[33,17]});
   }
 
   function autoActivationScheduleHtml(id){

@@ -47,7 +47,7 @@
   // Screen-space layout: one readable column east of the visible areas.
   // Recompute after pan/zoom; marker locations never alter stored geometry.
   function column(items,width,height){
-    const mobile=width<=600,margin=mobile?24:12,labelWidth=156,rowHeight=mobile?44:66;
+    const mobile=width<=600,margin=mobile?24:12,labelWidth=108,rowHeight=44;
     const rows=items.map(item=>{
       const xs=item.points.map(p=>p.x),ys=item.points.map(p=>p.y);
       return {...item,west:Math.min(...xs),east:Math.max(...xs),north:Math.min(...ys),south:Math.max(...ys)};

@@ -10259,7 +10259,7 @@ ffappWhenDomReady(function () {
       window.FISO_AREA_LABELS.timing(h,window.ffappNowMs?window.ffappNowMs():Date.now(),notamSolarMinutes),'');
   }
   function tdaChartLabelIcon(h,html){
-    return L.divIcon({className:'hazdam-label-icon',html:html||tdaChartLabelHtml(h),iconSize:[156,60],iconAnchor:[0,30]});
+    return L.divIcon({className:'hazdam-label-icon',html:html||tdaChartLabelHtml(h),iconSize:[108,40],iconAnchor:[0,20]});
   }
   function renderHazards() {
     setTimeout(refreshNotamPlotReferences,0);

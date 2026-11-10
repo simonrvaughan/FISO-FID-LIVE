@@ -51,3 +51,7 @@ Verification: all fourteen unit/integration test groups pass. Actual app/Leaflet
 The eight requested area labels now form one aligned column to the right/east of visible geometry. Stacked A/B/C bands stay together in order; leaders attach to published boundary points and end at the label's left edge. Positions are recomputed in screen coordinates after pan, zoom or resize, with viewport clamping when the area extends beyond the screen. Off-screen area labels are hidden. Geometry and activation logic are untouched.
 
 Larger text, dark backing and brighter stalks improve contrast. Mobile labels combine upper/lower limits on one line and reserve space above/below the column for map controls. Fifteen tests pass, including layout grouping/spacing and viewport limits; browser checks verify one column, non-overlapping desktop labels, mobile layout, popup clicks, changed dates and expiry.
+
+## D203-style presentation revision
+
+Removed dark label backgrounds, borders and padding. The eight labels now inherit the normal danger-area chart font sizes and white halo, use thinner red lettering (weight 500), and retain their levels and activation times in red. Stalks use the original subtle danger-area line style. Column width is reduced to 108 px and row spacing to 44 px; stacked-band order and pan/zoom layout are preserved. Fifteen tests and the desktop/mobile browser checks pass. Preview-only deployment; production unchanged.

@@ -26,7 +26,7 @@ test('visible areas use one right-hand column, group stacked bands and keep labe
  const rows=labels.column(items,1000,800);
  assert.equal(rows.length,5);assert.equal(new Set(rows.map(r=>r.label.x)).size,1);assert.ok(rows[0].label.x>300);
  assert.deepEqual(rows.map(r=>r.ref),['D290A','D290B','D290C','D220A','D220B']);
- for(let i=1;i<rows.length;i++)assert.ok(rows[i].label.y-rows[i-1].label.y>=66);
- for(const row of rows){assert.ok(row.points.includes(row.anchor));assert.ok(row.label.x+156<=1000);assert.ok(row.label.y>=30&&row.label.y<=770);}
- const mobile=labels.column(items,390,600);assert.ok(mobile.every(r=>r.label.x>=12&&r.label.x+156<=378));
+ for(let i=1;i<rows.length;i++)assert.ok(rows[i].label.y-rows[i-1].label.y>=44);
+ for(const row of rows){assert.ok(row.points.includes(row.anchor));assert.ok(row.label.x+108<=1000);assert.ok(row.label.y>=30&&row.label.y<=770);}
+ const mobile=labels.column(items,390,600);assert.ok(mobile.every(r=>r.label.x>=12&&r.label.x+108<=378));
 });

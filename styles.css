@@ -3142,18 +3142,7 @@ body.view-only-mode main.info-collapsed #map {
 body.view-only-mode main.strips-collapsed #stripsPanel:not(.mob-strips){flex-basis:0!important;width:0!important;min-width:0!important}
 body.view-only-mode main.strips-collapsed #map{width:100%!important}
 
-/* DEV461: readable side-column annotations; existing area styling is unchanged. */
-#map .hazdam-label.ffapp-area-label{width:156px;box-sizing:border-box;padding:5px 7px;border-left:2px solid #ff7777;border-radius:3px;background:rgba(6,17,26,.92);color:#ffb7b7;text-align:left;line-height:1.2;opacity:1;text-shadow:none;}
-#map .hazdam-label.ffapp-area-label .hazdam-label-id{font-size:11px;}
-#map .hazdam-label.ffapp-area-label .hazdam-label-limits{font-size:10px;text-decoration:none;}
-#map .hazdam-label.ffapp-area-label .ffapp-area-label-time{font-size:9px;color:#e5edf3;margin-top:3px;}
-.leaflet-overlay-pane svg path.hazdam-label-stalk.ffapp-area-column-stalk{stroke:#ff9090!important;stroke-width:1px!important;stroke-opacity:.85!important;}
-
-@media(max-width:600px){
- #map .hazdam-label.ffapp-area-label{padding:4px 7px;line-height:1.1;}
- #map .hazdam-label.ffapp-area-label .hazdam-label-id{font-size:10px;}
- #map .hazdam-label.ffapp-area-label .hazdam-label-limits{font-size:9px;}
- #map .hazdam-label.ffapp-area-label .hazdam-label-limits br{display:none;}
- #map .hazdam-label.ffapp-area-label .ffapp-area-upper::after{content:' / ';}
- #map .hazdam-label.ffapp-area-label .ffapp-area-label-time{font-size:8px;margin-top:2px;}
-}
+/* DEV461: unboxed chart annotations, matching the existing D203 family. */
+#map .hazdam-label.ffapp-area-label{width:108px;box-sizing:border-box;padding:0;border:0;border-radius:0;background:transparent;color:rgba(210,0,0,.95);font-weight:500;text-align:left;line-height:1.02;opacity:.9;text-shadow:0 0 2px rgba(255,255,255,.9),0 0 3px rgba(255,255,255,.7);}
+#map .hazdam-label.ffapp-area-label .ffapp-area-label-time{color:inherit;margin-top:2px;}
+.leaflet-overlay-pane svg path.hazdam-label-stalk.ffapp-area-column-stalk{stroke:#b40000!important;stroke-width:.7px!important;stroke-opacity:.58!important;}
