@@ -1288,6 +1288,7 @@ for (const id of Object.keys(STATIC)) {
     Object.keys(STATIC).forEach(updateAreaLayer);
     updateLabelZoomClass();
     if(window.FISO_AREA_LABELS)window.FISO_AREA_LABELS.refresh(map);
+    if(window.FISO_AREA_SELECTION)window.FISO_AREA_SELECTION.refresh();
   }
 
   function labelPointWithStalk(id, area, coords, isCircleArea, labelIndex){
@@ -1480,6 +1481,7 @@ for (const id of Object.keys(STATIC)) {
     if(!STATIC[id]) return;
     selectedId = id;
     draw();
+    if(window.FISO_AREA_SELECTION)window.FISO_AREA_SELECTION.start('DA:'+id,()=>visiblePolyFor(id));
     renderPanel();
     if(openPanel){
       openDangerTab();

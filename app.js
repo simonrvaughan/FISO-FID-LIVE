@@ -9036,6 +9036,7 @@ ffappWhenDomReady(function () {
       }
     });
     if(window.FISO_AREA_LABELS)window.FISO_AREA_LABELS.refresh(map);
+    if(window.FISO_AREA_SELECTION)window.FISO_AREA_SELECTION.refresh();
     if(isFinite(nextBoundary))hazardScheduleBoundaryTimer=setTimeout(refreshHazardVisibility,Math.max(10,Math.min(20000,nextBoundary-scheduleNow+1)));
   }
 
@@ -10011,6 +10012,10 @@ ffappWhenDomReady(function () {
 
   function openHazplotPopup(h) {
     if (!map || !window.L || !h) return;
+    if(h.type==='tda' && window.FISO_AREA_SELECTION)window.FISO_AREA_SELECTION.start('TDA:'+h.id,function(){
+      var shape=hazardShapes[h.id]||hazardRadiusShapes[h.id];
+      return shape && shape._map && temporaryHazardDisplayState(h)!=='hidden' ? shape : null;
+    });
     clearHazplotPopupLeader();
     clearHazplotPopupSync();
     activeHazplotPopupId = String(h.id);

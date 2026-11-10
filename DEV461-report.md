@@ -55,3 +55,9 @@ Larger text, dark backing and brighter stalks improve contrast. Mobile labels co
 ## D203-style presentation revision
 
 Removed dark label backgrounds, borders and padding. The eight labels now inherit the normal danger-area chart font sizes and white halo, use thinner red lettering (weight 500), and retain their levels and activation times in red. Stalks use the original subtle danger-area line style. Column width is reduced to 108 px and row spacing to 44 px; stacked-band order and pan/zoom layout are preserved. Fifteen tests and the desktop/mobile browser checks pass. Preview-only deployment; production unchanged.
+
+## Ten-second selection feedback
+
+Clicking a TDA polygon/label or selecting a programmed Danger Area now adds a gentle two-second pulse to a separate unfilled outline for ten seconds. Selecting another area removes the old pulse immediately and starts a fresh ten-second timer. It uses the monotonic display clock rather than the editable operational UTC clock. The outline is runtime-only and cannot change operational activation state, warning animations, stored geometry, labels or shared data. Redraws preserve the original expiry; hidden/expired TDAs lose the outline immediately.
+
+Nineteen tests pass, covering exact expiry, switching selections, redraws, hidden geometry and unchanged operational values. Browser checks exercise an actual TDA label click, a shared-band Marham label click, native redraw, CSS animation/fill, and automatic outline removal after ten seconds. Existing geometry, labels, date switching, activation and expiry checks still pass. Preview only; production unchanged.
