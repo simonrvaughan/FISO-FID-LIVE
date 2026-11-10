@@ -3617,6 +3617,7 @@ ffappWhenDomReady(function () {
         panel.hidden=true; toggle.setAttribute('aria-expanded','false'); toggle.classList.remove('is-open');
         setTimeOpen(false); setPositionOpen(false);
         renderParasQuick();
+        sizeParasPanel();
         parasRefreshTimer=setInterval(function(){
           // DEV425: never rebuild the list while the operator is editing a time/level.
           // Replacing <input> nodes every second was what made the time fields unusable on iPad.
@@ -3637,8 +3638,28 @@ ffappWhenDomReady(function () {
       if(ticker)bottom=Math.min(bottom,ticker.getBoundingClientRect().top);
       panel.style.maxHeight=Math.max(50,Math.floor(bottom-panel.getBoundingClientRect().top-6))+"px";
     }
-    if(typeof ResizeObserver!=="undefined")new ResizeObserver(sizeLayersPanel).observe(map.getContainer());
-    map.on("resize",sizeLayersPanel);
+    // DEV476: size the whole flex panel to the unobscured visual/map viewport.
+    // Header/key keep their natural height; only the remaining list can scroll.
+    function sizeParasPanel(){
+      if(!parasPanel||parasPanel.hidden)return;
+      var mapRect=map.getContainer().getBoundingClientRect(),top=parasPanel.getBoundingClientRect().top;
+      var viewport=window.visualViewport,bottom=viewport?viewport.offsetTop+viewport.height:window.innerHeight;
+      bottom=Math.min(bottom,mapRect.bottom);
+      ["notamClosureTicker","fisoMapTimeWarning","appFooter","footer"].forEach(function(id){
+        var el=document.getElementById(id);if(!el||el.hidden||getComputedStyle(el).display==="none")return;
+        var r=el.getBoundingClientRect();if(r.height&&r.top>top)bottom=Math.min(bottom,r.top);
+      });
+      var footer=document.querySelector('footer');if(footer){var r=footer.getBoundingClientRect();if(r.height&&r.top>top)bottom=Math.min(bottom,r.top);}
+      parasPanel.style.maxHeight=Math.max(0,Math.floor(bottom-top-8))+"px";
+    }
+    function sizeMapPanels(){sizeLayersPanel();sizeParasPanel();}
+    if(typeof ResizeObserver!=="undefined"){
+      var panelResizeObserver=new ResizeObserver(sizeMapPanels);panelResizeObserver.observe(map.getContainer());
+      var ticker=document.getElementById('notamClosureTicker');if(ticker)panelResizeObserver.observe(ticker);
+    }
+    map.on("resize",sizeMapPanels);
+    window.addEventListener('resize',sizeMapPanels);
+    if(window.visualViewport){window.visualViewport.addEventListener('resize',sizeMapPanels);window.visualViewport.addEventListener('scroll',sizeMapPanels);}
     function setOpen(open) {
       panel.hidden = !open;
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -7055,7 +7076,7 @@ ffappWhenDomReady(function () {
     var label = esc(startLabel) + ' → ' + esc(endLabel) +
       '<br>RANGE ' + distNm.toFixed(1) + ' NM · BEARING ' + pad3(Math.round(brg)) + '° · ETA ' + eta;
     if (rbLine.getTooltip()) rbLine.setTooltipContent(label);
-    else rbLine.bindTooltip(label,{permanent:true,direction:'center',className:'rb-route-label'});
+    else rbLine.bindTooltip(label,{permanent:false,direction:'center',className:'rb-route-label',interactive:false});
     rbLine.getTooltip().setLatLng(rbLine.getCenter());
     rbSyncFloatingFields();
   }
@@ -15320,7 +15341,7 @@ ffappWhenDomReady(function () {
       var root=dialog.querySelector('.todays-notams-host').shadowRoot;root.replaceChildren();
       var loading=document.createElement('p');loading.textContent='Loading today’s NOTAMs…';loading.setAttribute('role','status');root.appendChild(loading);dialog.__loadId=key;
       // Load ordinary HTML/CSS as text, not as a framed document. Keep DENY / frame-ancestors intact.
-      Promise.all(['todays-notams.html?v=472','todays-notams.css?v=472'].map(function(url){return fetch(url,{cache:'no-cache'}).then(function(r){if(!r.ok)throw new Error('Report asset HTTP '+r.status);return r.text();});})).then(function(parts){
+      Promise.all(['todays-notams.html?v=476','todays-notams.css?v=476'].map(function(url){return fetch(url,{cache:'no-cache'}).then(function(r){if(!r.ok)throw new Error('Report asset HTTP '+r.status);return r.text();});})).then(function(parts){
         if(!dialog.open||dialog.__loadId!==key)return;
         var template=new DOMParser().parseFromString(parts[0],'text/html').querySelector('main');
         if(!template||!window.FISO_NOTAM_PAGE)throw new Error('The report did not load. Close this popup and try again.');

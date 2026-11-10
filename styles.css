@@ -2967,22 +2967,22 @@ body.view-only-mode main.info-collapsed #map {
 .todays-notams-host{display:block;width:100%;height:100%;border:0}
 .todays-notams-close{position:absolute;right:5px;top:5px;width:34px;height:34px;padding:0;background:#102d3e;color:#fff;border:1px solid #7b9baa;border-radius:5px;font:24px/1 Arial;cursor:pointer;z-index:1}
 /* DEV464 POPUP END */
-.fiso-paras-panel{position:absolute;top:62px;right:0;width:430px;max-height:min(72vh,620px);padding:7px;border:1px solid #31576a;border-radius:7px;background:rgba(4,17,25,.98);color:#d8edf5;box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(6px);box-sizing:border-box}
+.fiso-paras-panel{position:absolute;top:62px;right:0;width:430px;display:flex;flex-direction:column;min-height:0;overflow:hidden;max-height:calc(100dvh - 160px);padding:7px;border:1px solid #31576a;border-radius:7px;background:rgba(4,17,25,.98);color:#d8edf5;box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(6px);box-sizing:border-box}
 .fiso-paras-panel[hidden]{display:none!important}
-.fiso-paras-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;font:800 10px/1 var(--mono);letter-spacing:.06em}
+.fiso-paras-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;font:800 10px/1 var(--mono);letter-spacing:.06em}
 .fiso-paras-head button{border:0;background:transparent;color:#9fc4d3;font-size:18px;line-height:16px;cursor:pointer;padding:0 2px}
-.fiso-paras-key{display:flex;align-items:center;gap:10px;padding:0 2px 5px;border-bottom:1px solid rgba(111,154,173,.22);font:700 7px/1 var(--mono);color:#9fc4d3}
+.fiso-paras-key{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:0 2px 5px;border-bottom:1px solid rgba(111,154,173,.22);font:700 7px/1 var(--mono);color:#9fc4d3}
 .fiso-paras-key span{display:flex;align-items:center;gap:4px}.fiso-paras-key small{margin-left:auto;font-size:7px;color:#7897a5}
 .para-dot,.fiso-para-state{display:inline-block;width:11px;height:11px;border:1px solid rgba(255,255,255,.42);border-radius:2px;box-sizing:border-box}
 .para-dot-off,.fiso-para-state.is-inactive{background:#1768b0}.para-dot-on,.fiso-para-state.is-active{background:#d92f35}
-.fiso-paras-list{overflow:auto;max-height:calc(min(72vh,620px) - 52px);overscroll-behavior:contain}
+.fiso-paras-list{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:6px;scroll-padding-bottom:6px}
 .fiso-para-row{display:grid;grid-template-columns:15px minmax(105px,1fr) 232px;gap:5px;align-items:center;min-height:31px;padding:3px 2px;border-bottom:1px solid rgba(111,154,173,.14)}
 .fiso-para-state{padding:0;cursor:pointer;appearance:none;-webkit-appearance:none}
 .fiso-para-state.is-warning{animation:fisoParaAttention .75s steps(2,end) infinite}
 @keyframes fisoParaAttention{0%,49%{background:#1768b0;box-shadow:0 0 0 0 rgba(255,193,7,0)}50%,100%{background:#ffc107;box-shadow:0 0 0 2px rgba(255,193,7,.25)}}
 .fiso-para-main{min-width:0;display:flex;flex-direction:column;gap:1px}.fiso-para-main b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:800 8px/1.1 var(--mono);color:#e8f6fb}.fiso-para-main span{font:600 7px/1.1 var(--mono);color:#9fc4d3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fiso-para-phone{color:#77c9ee;text-decoration:none}.fiso-para-no-phone{color:#627d89}
 .fiso-para-times{display:flex;align-items:center;justify-content:flex-end;gap:2px}.fiso-para-times input{width:64px;height:22px;padding:0 2px;border:1px solid #31576a;border-radius:3px;background:#071923;color:#d8edf5;font:700 8px/1 var(--mono);box-sizing:border-box}.fiso-para-times i{font-style:normal;color:#7897a5;font-size:8px}
-@media(max-width:700px){.fiso-paras-panel{top:58px;width:min(390px,calc(100vw - 14px));max-height:68vh}.fiso-paras-list{max-height:calc(68vh - 52px)}.fiso-para-row{grid-template-columns:15px minmax(95px,1fr) 138px}.fiso-para-times input{width:62px}}
+@media(max-width:700px){.fiso-paras-panel{top:58px;width:min(390px,calc(100vw - 14px));max-height:calc(100dvh - 150px)}.fiso-para-row{grid-template-columns:15px minmax(95px,1fr) 138px}.fiso-para-times input{width:62px}}
 
 /* DEV425 PARA level field + iPad editable controls */
 .fiso-para-times .fiso-para-level{width:78px;text-transform:uppercase}
