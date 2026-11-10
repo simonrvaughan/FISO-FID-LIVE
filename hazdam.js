@@ -1027,7 +1027,7 @@ for (const id of Object.keys(STATIC)) {
 
   function labelIcon(id,html){
     const timed=window.FISO_AREA_LABELS && window.FISO_AREA_LABELS.applies(id);
-    return L.divIcon({className:'hazdam-label-icon',html,iconSize:timed?[126,52]:[66,34],iconAnchor:timed?[63,26]:[33,17]});
+    return L.divIcon({className:'hazdam-label-icon',html,iconSize:timed?[156,60]:[66,34],iconAnchor:timed?[0,30]:[33,17]});
   }
 
   function autoActivationScheduleHtml(id){
@@ -1287,6 +1287,7 @@ for (const id of Object.keys(STATIC)) {
   function refreshAllAreaLayers(){
     Object.keys(STATIC).forEach(updateAreaLayer);
     updateLabelZoomClass();
+    if(window.FISO_AREA_LABELS)window.FISO_AREA_LABELS.refresh(map);
   }
 
   function labelPointWithStalk(id, area, coords, isCircleArea, labelIndex){
@@ -1413,6 +1414,7 @@ for (const id of Object.keys(STATIC)) {
         icon: labelIcon(id,labelHtml(id))
       });
       label.__hazdamId = id;
+      if(window.FISO_AREA_LABELS && window.FISO_AREA_LABELS.applies(id))label.__ffappAreaLayout={ref:window.FISO_AREA_LABELS.ref(id),points:coords.map(p=>({lat:p[0],lon:p[1]})),stalk};
       label.on("click", () => { selectArea(id, true); openAreaPopup(id); });
       label.addTo(layerGroup);
       layersById[id] = { poly: displayedPoly, label, stalk, sharedGeometryWith: existingGeometryId || null, geometryMembers:[id] };

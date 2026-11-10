@@ -30,7 +30,7 @@
     return (current?'':next?'NEXT ':'ENDED ')+range(chosen[0],chosen[1]);
   }
   function html(id,upper,lower,time,state,selected){
-    return '<div class="hazdam-label ffapp-area-label '+escape(state||'')+(selected?' hazdam-label-selected':'')+'" data-area-ref="'+escape(ref(id))+'"><div class="hazdam-label-id">'+escape(ref(id))+'</div><div class="hazdam-label-limits">'+escape(upper||'—')+'<br>'+escape(lower||'—')+'</div><div class="ffapp-area-label-time">'+escape(time)+'</div></div>';
+    return '<div class="hazdam-label ffapp-area-label '+escape(state||'')+(selected?' hazdam-label-selected':'')+'" data-area-ref="'+escape(ref(id))+'"><div class="hazdam-label-id">'+escape(ref(id))+'</div><div class="hazdam-label-limits"><span class="ffapp-area-upper">'+escape(upper||'—')+'</span><br><span class="ffapp-area-lower">'+escape(lower||'—')+'</span></div><div class="ffapp-area-label-time">'+escape(time)+'</div></div>';
   }
   function layout(id,points){
     const lat=points.map(p=>p.lat),lon=points.map(p=>p.lon),south=Math.min(...lat),north=Math.max(...lat),west=Math.min(...lon),east=Math.max(...lon);
@@ -44,5 +44,55 @@
     },points[0]);
     return {label,anchor:[anchor.lat,anchor.lon]};
   }
-  return {ref,applies,timing,html,layout};
+  // Screen-space layout: one readable column east of the visible areas.
+  // Recompute after pan/zoom; marker locations never alter stored geometry.
+  function column(items,width,height){
+    const mobile=width<=600,margin=mobile?24:12,labelWidth=156,rowHeight=mobile?44:66;
+    const rows=items.map(item=>{
+      const xs=item.points.map(p=>p.x),ys=item.points.map(p=>p.y);
+      return {...item,west:Math.min(...xs),east:Math.max(...xs),north:Math.min(...ys),south:Math.max(...ys)};
+    }).filter(item=>item.east>=0&&item.west<=width&&item.south>=0&&item.north<=height);
+    if(!rows.length)return [];
+    const x=Math.max(margin,Math.min(width-labelWidth-margin,Math.max(...rows.map(r=>r.east))+28));
+    rows.forEach(row=>{
+      const middle=(row.north+row.south)/2;
+      row.anchor=row.points.reduce((best,p)=>Math.hypot(p.x-x,p.y-middle)<Math.hypot(best.x-x,best.y-middle)?p:best,row.points[0]);
+    });
+    const groups=new Map();
+    rows.forEach(row=>{row.group=row.ref.replace(/[A-Z]$/,'');const values=groups.get(row.group)||[];values.push(row.anchor.y);groups.set(row.group,values);});
+    const groupY=row=>groups.get(row.group).reduce((a,b)=>a+b,0)/groups.get(row.group).length;
+    rows.sort((a,b)=>groupY(a)-groupY(b)||a.ref.localeCompare(b.ref));
+    const top=mobile?94:32,bottom=height-(mobile?64:32);
+    const gap=Math.min(rowHeight,(bottom-top)/Math.max(1,rows.length-1));
+    const desired=rows.reduce((sum,r)=>sum+r.anchor.y,0)/rows.length;
+    const start=Math.max(top,Math.min(bottom-gap*(rows.length-1),desired-gap*(rows.length-1)/2));
+    return rows.map((row,i)=>({...row,label:{x,y:start+i*gap},knee:{x:x-14,y:start+i*gap}}));
+  }
+  const bound=new WeakSet(),pending=new WeakSet();
+  function refresh(map){
+    if(!map)return;
+    if(!bound.has(map)){bound.add(map);map.on('moveend zoomend resize',()=>refresh(map));}
+    if(pending.has(map))return;
+    pending.add(map);
+    requestAnimationFrame(()=>{
+      pending.delete(map);
+      const items=[];
+      map.eachLayer(marker=>{
+        const info=marker.__ffappAreaLayout,el=marker.getElement&&marker.getElement();
+        if(!info||!el)return;
+        if(el.style.display==='none')return;
+        el.style.visibility='hidden';
+        if(info.stalk._path){info.stalk._path.style.visibility='hidden';info.stalk._path.classList.add('ffapp-area-column-stalk');}
+        items.push({...info,marker,points:info.points.map(p=>map.latLngToContainerPoint([p.lat,p.lon]))});
+      });
+      const size=map.getSize();
+      column(items,size.x,size.y).forEach(row=>{
+        row.marker.setLatLng(map.containerPointToLatLng(row.label));
+        row.marker.getElement().style.visibility='';
+        row.stalk.setLatLngs([row.anchor,row.knee,row.label].map(p=>map.containerPointToLatLng(p)));
+        if(row.stalk._path)row.stalk._path.style.visibility='';
+      });
+    });
+  }
+  return {ref,applies,timing,html,layout,column,refresh};
 });

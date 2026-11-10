@@ -193,10 +193,10 @@ window.ffappLoadGeoTiff=function(){
 const FFAPP_BUILD_VERSION="456";
 window.FFAPP_BUILD_VERSION=FFAPP_BUILD_VERSION;
 const CHANGED_OPERATIONAL_ASSETS=new Set(["app.js","aircraft-track.js","hazdam.js","notam-schedule.js","dev456-history-ui.js"]);
-function buildAsset(name){ if(name==="aviationdata.js"||name==="hazdam.js")return name+"?v=dev461-3"; if(name==="app.js")return name+"?v=dev461-3"; if(name==="notam-schedule.js")return name+"?v=472"; return name + "?v=" + (CHANGED_OPERATIONAL_ASSETS.has(name)?FFAPP_BUILD_VERSION:(name==="notamengine.js"?"468":"447")); }
+function buildAsset(name){ if(name==="aviationdata.js"||name==="hazdam.js")return name+"?v=dev461-4"; if(name==="app.js")return name+"?v=dev461-4"; if(name==="notam-schedule.js")return name+"?v=472"; return name + "?v=" + (CHANGED_OPERATIONAL_ASSETS.has(name)?FFAPP_BUILD_VERSION:(name==="notamengine.js"?"468":"447")); }
 const CORE_OPERATIONAL_SOURCES=[
   // Only code required to draw and operate the initial map blocks first paint.
-  buildAsset("notam-history.js"),buildAsset("aip_airfields_20260903.js"),buildAsset("notamengine.js"),buildAsset("metarengine.js"),buildAsset("laas_airfields_2017.js"),buildAsset("notam-schedule.js"),"todays-notams.js?v=472","notam-annotations.js?v=472","notam-shared.js?v=472","notam-plot-references.js?v=472","airfield-map-labels.js?v=472","todays-notams-page.js?v=472","info-pin.js?v=463","airfield-info.js?v=463","vendor/geographiclib-geodesic.min.js?v=2.2.0","tda-geometry.js?v=dev461-1","danger-area-labels.js?v=dev461-3",buildAsset("app.js")
+  buildAsset("notam-history.js"),buildAsset("aip_airfields_20260903.js"),buildAsset("notamengine.js"),buildAsset("metarengine.js"),buildAsset("laas_airfields_2017.js"),buildAsset("notam-schedule.js"),"todays-notams.js?v=472","notam-annotations.js?v=472","notam-shared.js?v=472","notam-plot-references.js?v=472","airfield-map-labels.js?v=472","todays-notams-page.js?v=472","info-pin.js?v=463","airfield-info.js?v=463","vendor/geographiclib-geodesic.min.js?v=2.2.0","tda-geometry.js?v=dev461-1","danger-area-labels.js?v=dev461-4",buildAsset("app.js")
 ];
 const DEFERRED_OPERATIONAL_SOURCES=[
   "dev457-dashboard.js?v=1",
@@ -322,7 +322,7 @@ function ensureWorkspace(){
       });
       const [html]=await Promise.all([htmlPromise,
         loadWorkspaceStyle("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"),
-        loadWorkspaceStyle("styles.css?v=dev461-3"),loadWorkspaceStyle("workspace.css?v=451")]);
+        loadWorkspaceStyle("styles.css?v=dev461-4"),loadWorkspaceStyle("workspace.css?v=451")]);
       if(!html.includes('id="map"')||/<script\b/i.test(html))throw new Error("Invalid operational workspace");
       assertEntry();$("workspaceMount").innerHTML=html;
       wireWorkspaceUi();

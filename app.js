@@ -9035,6 +9035,7 @@ ffappWhenDomReady(function () {
         rShape.setStyle({ opacity: rVis ? 0.85 : 0, fillOpacity: rVis ? 0.08 : 0 });
       }
     });
+    if(window.FISO_AREA_LABELS)window.FISO_AREA_LABELS.refresh(map);
     if(isFinite(nextBoundary))hazardScheduleBoundaryTimer=setTimeout(refreshHazardVisibility,Math.max(10,Math.min(20000,nextBoundary-scheduleNow+1)));
   }
 
@@ -10258,7 +10259,7 @@ ffappWhenDomReady(function () {
       window.FISO_AREA_LABELS.timing(h,window.ffappNowMs?window.ffappNowMs():Date.now(),notamSolarMinutes),'');
   }
   function tdaChartLabelIcon(h,html){
-    return L.divIcon({className:'hazdam-label-icon',html:html||tdaChartLabelHtml(h),iconSize:[126,52],iconAnchor:[63,26]});
+    return L.divIcon({className:'hazdam-label-icon',html:html||tdaChartLabelHtml(h),iconSize:[156,60],iconAnchor:[0,30]});
   }
   function renderHazards() {
     setTimeout(refreshNotamPlotReferences,0);
@@ -10393,6 +10394,7 @@ ffappWhenDomReady(function () {
         var stalk=L.polyline([chartLayout.anchor,chartLayout.label],{color:'#b40000',weight:.7,opacity:.58,interactive:false,className:'hazdam-label-stalk'}).addTo(hazardLayer);
         stalk.__ffappAreaStalkRef=chartRef;
         hazardLabelStalks[h.id]=stalk;
+        m.__ffappAreaLayout={ref:chartRef,points:h.points,stalk:stalk};
       }
       m.on("click", function () {
         // Release249: for GNSS/GPS/radio-frequency jamming the published area

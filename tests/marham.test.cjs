@@ -38,7 +38,7 @@ test('chart labels show Marham levels and dated activation times without losing 
  const {window,ctx,setTime}=model();for(const n of fixtures){const p=ctx.autoPibDangerAreaPayloads(n)[0];window.HAZDAM.applyAutoNotamBundleToArea(p.areaId,[p]);}
  setTime('2026-11-10T11:00:00Z');
  for(const id of ['EGD220A','EGD220B']){const html=window.HAZDAM.labelHtml(id);assert.match(html,/10 NOV 1030–1900Z/);assert.match(html,new RegExp('data-area-ref="'+id.slice(2)+'"'));}
- assert.match(window.HAZDAM.labelHtml('EGD220A'),/FL105<br>SFC/);assert.match(window.HAZDAM.labelHtml('EGD220B'),/FL195<br>FL105/);
+ assert.match(window.HAZDAM.labelHtml('EGD220A'),/FL105<\/span><br><span[^>]*>SFC/);assert.match(window.HAZDAM.labelHtml('EGD220B'),/FL195<\/span><br><span[^>]*>FL105/);
  setTime('2026-11-10T10:00:00Z');assert.match(window.HAZDAM.labelHtml('EGD220A'),/NEXT 10 NOV/);
  setTime('2026-11-10T19:00:00Z');assert.match(window.HAZDAM.labelHtml('EGD220A'),/ENDED 10 NOV/);
 });
